@@ -16,10 +16,10 @@ public:
 		return _op(_score1(e), _score2(e));
 	}
 
-	inline void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {
+	void notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		_score1.notifyNodeMerge(a, b, target);
-		_score2.notifyNodeMerge(a, b, target);
+		_score1.notifyNodeMerge(from, to);
+		_score2.notifyNodeMerge(from, to);
 	}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
@@ -53,9 +53,9 @@ public:
 		return _op(_score(e));
 	}
 
-	inline void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {
+	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		_score.notifyNodeMerge(a, b, target);
+		_score.notifyNodeMerge(from, to);
 	}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {

@@ -31,9 +31,9 @@ public:
 				_regionSizes[_regionGraph.edge(e).v]);
 	}
 
-	inline void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {
+	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		_regionSizes[target] = _regionSizes[a] + _regionSizes[b];
+		_regionSizes[to] += _regionSizes[from];
 	}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
@@ -69,7 +69,7 @@ public:
 		return _affinities[e];
 	}
 
-	void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {}
+	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
@@ -106,7 +106,7 @@ public:
 		return _affinities[e];
 	}
 
-	void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {}
+	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
@@ -163,7 +163,7 @@ public:
 		return _affinities[*median];
 	}
 
-	void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {}
+	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 

@@ -141,85 +141,73 @@ private:
 		NodeIdType a = _regionGraph.edge(e).u;
 		NodeIdType b = _regionGraph.edge(e).v;
 
-		// create a new node c = a + b
-		// TODO: re-use node a
-		NodeIdType c = _regionGraph.addNode();
+		// assign new node a = a + b
+		edgeScoringFunction.notifyNodeMerge(b, a);
 
-		edgeScoringFunction.notifyNodeMerge(a, b, c);
+		// set path
+		_rootPaths[b] = a;
 
-		// set parents
-		_rootPaths[a] = c;
-		_rootPaths[b] = c;
+		// mark all incident edges of a as stale...
+		for (EdgeIdType neighborEdge : _regionGraph.incEdges(a))
+			_stale[neighborEdge] = true;
 
-		// connect c to neighbors of a and b, and update affiliatedEdges
+		// ...and update incident edges of b
+		std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(b);
+		for (EdgeIdType neighborEdge : neighborEdges) {
 
-		// for each child region
-		for (NodeIdType child : { a, b } ) {
+			if (neighborEdge == e)
+				continue;
 
-			// for all neighbors of child...
-			std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(child);
-			for (EdgeIdType neighborEdge : neighborEdges) {
+			NodeIdType neighbor = _regionGraph.getOpposite(b, neighborEdge);
 
-				// ...except the edge we merge already
-				if (neighborEdge == e)
-					continue;
+			// There are two kinds of neighbors of b:
+			//
+			//   1. exclusive to b
+			//   2. shared by a and b
 
-				NodeIdType neighbor = _regionGraph.getOpposite(child, neighborEdge);
+			EdgeIdType aNeighborEdge = _regionGraph.findEdge(a, neighbor);
 
-				// There are two kinds of neighbors:
+			if (aNeighborEdge == RegionGraphType::NoEdge) {
+
+				// We encountered an exclusive neighbor of b.
+
+				_regionGraph.moveEdge(neighborEdge, a, neighbor);
+				assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
+				_stale[neighborEdge] = true;
+
+			} else {
+
+				// We encountered a shared neighbor. We have to:
 				//
-				//   1. exclusive to a or b
-				//   2. shared by a and b
+				// * merge the more expensive edge one into the cheaper one
+				// * mark the cheaper one as stale (if it isn't already)
+				// * delete the more expensive one
 				//
-				// That means we encounter edges to neighbors either one or two 
-				// times.
+				// This ensures that the stale edge bubbles up early enough 
+				// to consider it's real score (which is assumed to be 
+				// larger than the minium of the two original scores).
 
-				EdgeIdType prevNeighborEdge = _regionGraph.findEdge(c, neighbor);
+				if (_edgeScores[neighborEdge] > _edgeScores[aNeighborEdge]) {
 
-				if (prevNeighborEdge == RegionGraphType::NoEdge) {
+					// We got lucky, we can reuse the edge that is attached to a 
+					// already
 
-					// We encountered the first edge to neighbor. Following an 
-					// optimisitic strategy, we move it to point from c to 
-					// neighbor and mark it as stale. If this was the only edge 
-					// to neighbor, we are done.
-
-					_regionGraph.moveEdge(neighborEdge, c, neighbor);
-					assert(_regionGraph.findEdge(c, neighbor) == neighborEdge);
-					_stale[neighborEdge] = true;
+					edgeScoringFunction.notifyEdgeMerge(neighborEdge, aNeighborEdge);
+					_deleted[neighborEdge] = true;
 
 				} else {
 
-					// We encountered the second edge to neighbor. We have to:
-					//
-					// * merge the more expensive one into the cheaper one
-					// * mark the cheaper one as stale (if it isn't already)
-					// * delete the more expensive one
-					//
-					// This ensures that the stale edge bubbles up early enough 
-					// to consider it's real score (which is assumed to be 
-					// larger than the minium of the two original scores).
+					// Bummer. The new edge should be the one pointing from 
+					// a to neighbor.
 
-					if (_edgeScores[neighborEdge] > _edgeScores[prevNeighborEdge]) {
+					edgeScoringFunction.notifyEdgeMerge(aNeighborEdge, neighborEdge);
 
-						// We got lucky, we can reuse the edge we moved already.
+					_regionGraph.removeEdge(aNeighborEdge);
+					_regionGraph.moveEdge(neighborEdge, a, neighbor);
+					assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
 
-						edgeScoringFunction.notifyEdgeMerge(neighborEdge, prevNeighborEdge);
-						_deleted[neighborEdge] = true;
-
-					} else {
-
-						// Bummer. The new edge should be the one pointing from 
-						// c to neighbor.
-
-						edgeScoringFunction.notifyEdgeMerge(prevNeighborEdge, neighborEdge);
-
-						_regionGraph.removeEdge(prevNeighborEdge);
-						_regionGraph.moveEdge(neighborEdge, c, neighbor);
-						assert(_regionGraph.findEdge(c, neighbor) == neighborEdge);
-
-						_stale[neighborEdge] = true;
-						_deleted[prevNeighborEdge] = true;
-					}
+					_stale[neighborEdge] = true;
+					_deleted[aNeighborEdge] = true;
 				}
 			}
 		}
