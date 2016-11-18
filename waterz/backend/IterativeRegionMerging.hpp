@@ -4,10 +4,11 @@
 #include <vector>
 #include <map>
 #include <queue>
+#include <cassert>
 
 #include "RegionGraph.hpp"
 
-template <typename NodeIdType, typename AffinityType, typename ScoreType = AffinityType>
+template <typename NodeIdType, typename ScoreType>
 class IterativeRegionMerging {
 
 public:
@@ -22,6 +23,8 @@ public:
 	IterativeRegionMerging(RegionGraphType& initialRegionGraph) :
 		_regionGraph(initialRegionGraph),
 		_edgeScores(initialRegionGraph),
+		_deleted(initialRegionGraph),
+		_stale(initialRegionGraph),
 		_edgeQueue(EdgeCompare(_edgeScores)),
 		_mergedUntil(0) {}
 
@@ -40,31 +43,49 @@ public:
 		}
 
 		// compute scores of each edge not scored so far
-		if (_mergedUntil == 0)
+		if (_mergedUntil == 0) {
+
+			std::cout << "computing initial scores" << std::endl;
+
 			for (EdgeIdType e = 0; e < _regionGraph.edges().size(); e++)
 				scoreEdge(e, edgeScoringFunction);
+		}
+
+		std::cout << "merging until " << threshold << std::endl;
 
 		// while there are still unhandled edges
 		while (_edgeQueue.size() > 0) {
 
 			// get the next cheapest edge to merge
 			EdgeIdType next = _edgeQueue.top();
+			ScoreType score = _edgeScores[next];
 
 			// stop, if the threshold got exceeded
-			ScoreType score = _edgeScores[next];
-			if (score >= threshold)
+			// (also if edge is stale or got deleted, as new edges can only be 
+			// more expensive)
+			if (score >= threshold) {
+
+				std::cout << "threshold exceeded" << std::endl;
 				break;
+			}
 
 			_edgeQueue.pop();
 
-			NodeIdType u = _regionGraph.edge(next).u;
-			NodeIdType v = _regionGraph.edge(next).v;
-
-			// skip if incident regions already got merged
-			if (!isRoot(u) || !isRoot(v))
+			if (_deleted[next])
 				continue;
 
-			mergeRegions(u, v, edgeScoringFunction);
+			if (_stale[next]) {
+
+				// if we encountered a stale edge, recompute it's score and 
+				// place it back in the queue
+				ScoreType newScore = scoreEdge(next, edgeScoringFunction);
+				_stale[next] = false;
+				assert(newScore >= score);
+
+				continue;
+			}
+
+			mergeRegions(next, edgeScoringFunction);
 		}
 
 		_mergedUntil = threshold;
@@ -98,6 +119,9 @@ private:
 
 		bool operator()(EdgeIdType a, EdgeIdType b) {
 
+			if (_edgeScores[a] == _edgeScores[b])
+				return a > b;
+
 			return _edgeScores[a] > _edgeScores[b];
 		}
 
@@ -111,11 +135,14 @@ private:
 	 */
 	template <typename EdgeScoringFunction>
 	void mergeRegions(
-			NodeIdType a,
-			NodeIdType b,
+			EdgeIdType e,
 			EdgeScoringFunction& edgeScoringFunction) {
 
+		NodeIdType a = _regionGraph.edge(e).u;
+		NodeIdType b = _regionGraph.edge(e).v;
+
 		// create a new node c = a + b
+		// TODO: re-use node a
 		NodeIdType c = _regionGraph.addNode();
 
 		edgeScoringFunction.notifyNodeMerge(a, b, c);
@@ -129,33 +156,77 @@ private:
 		// for each child region
 		for (NodeIdType child : { a, b } ) {
 
-			// for all neighbors of child
-			for (EdgeIdType neighborEdge : _regionGraph.incEdges(child)) {
+			// for all neighbors of child...
+			std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(child);
+			for (EdgeIdType neighborEdge : neighborEdges) {
+
+				// ...except the edge we merge already
+				if (neighborEdge == e)
+					continue;
 
 				NodeIdType neighbor = _regionGraph.getOpposite(child, neighborEdge);
 
-				// don't consider already merged regions
-				if (!isRoot(neighbor))
-					continue;
+				// There are two kinds of neighbors:
+				//
+				//   1. exclusive to a or b
+				//   2. shared by a and b
+				//
+				// That means we encounter edges to neighbors either one or two 
+				// times.
 
-				// do we already have an edge to this neighbor?
-				EdgeIdType newEdge = _regionGraph.findEdge(c, neighbor);
+				EdgeIdType prevNeighborEdge = _regionGraph.findEdge(c, neighbor);
 
-				// if not, add the edge c
-				if (newEdge == RegionGraphType::NoEdge)
-					newEdge = _regionGraph.addEdge(c, neighbor);
+				if (prevNeighborEdge == RegionGraphType::NoEdge) {
 
-				edgeScoringFunction.notifyEdgeMerge(neighborEdge, newEdge);
+					// We encountered the first edge to neighbor. Following an 
+					// optimisitic strategy, we move it to point from c to 
+					// neighbor and mark it as stale. If this was the only edge 
+					// to neighbor, we are done.
+
+					_regionGraph.moveEdge(neighborEdge, c, neighbor);
+					assert(_regionGraph.findEdge(c, neighbor) == neighborEdge);
+					_stale[neighborEdge] = true;
+
+				} else {
+
+					// We encountered the second edge to neighbor. We have to:
+					//
+					// * merge the more expensive one into the cheaper one
+					// * mark the cheaper one as stale (if it isn't already)
+					// * delete the more expensive one
+					//
+					// This ensures that the stale edge bubbles up early enough 
+					// to consider it's real score (which is assumed to be 
+					// larger than the minium of the two original scores).
+
+					if (_edgeScores[neighborEdge] > _edgeScores[prevNeighborEdge]) {
+
+						// We got lucky, we can reuse the edge we moved already.
+
+						edgeScoringFunction.notifyEdgeMerge(neighborEdge, prevNeighborEdge);
+						_deleted[neighborEdge] = true;
+
+					} else {
+
+						// Bummer. The new edge should be the one pointing from 
+						// c to neighbor.
+
+						edgeScoringFunction.notifyEdgeMerge(prevNeighborEdge, neighborEdge);
+
+						_regionGraph.removeEdge(prevNeighborEdge);
+						_regionGraph.moveEdge(neighborEdge, c, neighbor);
+						assert(_regionGraph.findEdge(c, neighbor) == neighborEdge);
+
+						_stale[neighborEdge] = true;
+						_deleted[prevNeighborEdge] = true;
+					}
+				}
 			}
 		}
-
-		// score all new edges == incident edges to c
-		for (EdgeIdType e : _regionGraph.incEdges(c))
-			scoreEdge(e, edgeScoringFunction);
 	}
 
 	/**
-	 * Score edge i.
+	 * Score edge e.
 	 */
 	template <typename EdgeScoringFunction>
 	ScoreType scoreEdge(EdgeIdType e, EdgeScoringFunction& edgeScoringFunction) {
@@ -205,6 +276,9 @@ private:
 
 	// the score of each edge
 	typename RegionGraphType::template EdgeMap<ScoreType> _edgeScores;
+
+	typename RegionGraphType::template EdgeMap<bool> _stale;
+	typename RegionGraphType::template EdgeMap<bool> _deleted;
 
 	// sorted list of edges indices, cheapest edge first
 	std::priority_queue<EdgeIdType, std::vector<EdgeIdType>, EdgeCompare> _edgeQueue;

@@ -1,5 +1,3 @@
-#include <functional>
-
 template <typename ScoreFunction1, typename ScoreFunction2, typename Op>
 class BinaryOperator {
 

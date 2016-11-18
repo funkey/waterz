@@ -39,12 +39,14 @@ std::vector<Metrics> process_thresholds(
 
 	IterativeRegionMerging<uint64_t, float> regionMerging(*state.region_graph);
 
-	//MedianAffinity<uint64_t, float> mergeFunctionAffinities(*state.region_graph, *state.edge_affinities);
-
+	//MedianAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
 	MaxAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
+	//MinAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
+
 	MinSize<RegionGraphType::NodeMap<std::size_t>> mergeFunctionRegionSize(*state.region_sizes);
 
-	//auto mergeFunction = oneMinus(square(mergeFunctionAffinities));
+	//auto mergeFunction = mergeFunctionRegionSize;
+	//auto mergeFunction = oneMinus(mergeFunctionAffinities);
 	//auto mergeFunction = divide(
 			//mergeFunctionRegionSize,
 			//square(

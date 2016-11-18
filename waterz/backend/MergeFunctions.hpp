@@ -45,6 +45,43 @@ private:
 };
 
 /**
+ * Scores edges with min affinity.
+ */
+template <typename AffinityMapType>
+class MinAffinity {
+
+public:
+
+	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
+	typedef typename AffinityMapType::ValueType       ScoreType;
+	typedef typename RegionGraphType::NodeIdType      NodeIdType;
+	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+
+	MinAffinity(AffinityMapType& affinities) :
+		_affinities(affinities) {}
+
+	/**
+	 * Get the score for an edge. An edge will be merged the earlier, the 
+	 * smaller its score is.
+	 */
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return _affinities[e];
+	}
+
+	void notifyNodeMerge(NodeIdType a, NodeIdType b, NodeIdType target) {}
+
+	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+
+		_affinities[to] = std::min(_affinities[to], _affinities[from]);
+	}
+
+private:
+
+	AffinityMapType& _affinities;
+};
+
+/**
  * Scores edges with max affinity.
  */
 template <typename AffinityMapType>

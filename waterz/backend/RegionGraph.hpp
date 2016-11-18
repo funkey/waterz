@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <limits>
+#include <cassert>
 
 template <typename ID>
 struct RegionGraphEdge {
@@ -68,14 +69,14 @@ public:
 		RegionGraphNodeMapBase<ID>(regionGraph),
 		_values(std::move(values)) {}
 
-	inline const T& operator[](ID i) const { return _values[i]; }
-	inline T& operator[](ID i) { return _values[i]; }
+	inline typename Container::const_reference operator[](ID i) const { return _values[i]; }
+	inline typename Container::reference operator[](ID i) { return _values[i]; }
 
 private:
 
 	void onNewNode(ID id) {
 
-		_values.emplace_back();
+		_values.push_back(T());
 	}
 
 	Container _values;
@@ -125,14 +126,14 @@ public:
 		RegionGraphEdgeMapBase<ID>(regionGraph),
 		_values(regionGraph.edges().size()) {}
 
-	inline const T& operator[](std::size_t i) const { return _values[i]; }
-	inline T& operator[](std::size_t i) { return _values[i]; }
+	inline typename Container::const_reference operator[](std::size_t i) const { return _values[i]; }
+	inline typename Container::reference operator[](std::size_t i) { return _values[i]; }
 
 private:
 
 	void onNewEdge(std::size_t id) {
 
-		_values.emplace_back();
+		_values.push_back(T());
 	}
 
 	Container _values;
@@ -177,7 +178,7 @@ public:
 	std::size_t addEdge(NodeIdType u, NodeIdType v) {
 
 		std::size_t id = _edges.size();
-		_edges.push_back(EdgeType(u, v));
+		_edges.push_back(EdgeType(std::min(u, v), std::max(u, v)));
 
 		_incEdges[u].push_back(id);
 		_incEdges[v].push_back(id);
@@ -186,6 +187,67 @@ public:
 			map->onNewEdge(id);
 
 		return id;
+	}
+
+	void removeEdge(EdgeIdType e) {
+
+		removeIncEdge(_edges[e].u, e);
+		removeIncEdge(_edges[e].v, e);
+	}
+
+	void moveEdge(EdgeIdType e, NodeIdType u, NodeIdType v) {
+
+		// three possibilities:
+		//
+		//   1. nothing changed (unlikely, callers responsibility)
+		//   2. only u or v changed
+		//      order independent, four subcases
+		//   3. u and v changed
+
+		NodeIdType pu = _edges[e].u;
+		NodeIdType pv = _edges[e].v;
+
+		// is pu already one of the new nodes?
+		if (pu == u) {
+
+			// keep pu, update pv -> v
+			moveEdgeNodeV(e, v);
+
+		} else if (pu == v) {
+
+			// keep pu, update pv -> u
+			moveEdgeNodeV(e, u);
+
+		} else {
+
+			// is pv already one of the new nodes?
+			if (pv == v) {
+
+				// keep pv, update pu -> u
+				moveEdgeNodeU(e, u);
+
+			} else if (pv == u) {
+
+				// keep pv, update pu -> u
+				moveEdgeNodeU(e, v);
+
+			} else {
+
+				// none of them is equal to the new nodes
+				moveEdgeNodeU(e, u);
+				moveEdgeNodeV(e, v);
+			}
+		}
+
+		// ensure new ids are sorted
+		if (_edges[e].u > _edges[e].v)
+			std::swap(_edges[e].u, _edges[e].v);
+
+		assert(std::min(u, v) == _edges[e].u);
+		assert(std::max(u, v) == _edges[e].v);
+		assert(findEdge(u, v) == e);
+		assert(std::find(incEdges(u).begin(), incEdges(u).end(), e) != incEdges(u).end());
+		assert(std::find(incEdges(v).begin(), incEdges(v).end(), e) != incEdges(v).end());
 	}
 
 	inline const EdgeType& edge(EdgeIdType e) const { return _edges[e]; }
@@ -250,6 +312,28 @@ private:
 		auto it = std::find(_edgeMaps.begin(), _edgeMaps.end(), edgeMap);
 		if (it != _edgeMaps.end())
 			_edgeMaps.erase(it);
+	}
+
+	inline void moveEdgeNodeV(EdgeIdType e, NodeIdType v) {
+
+		removeIncEdge(_edges[e].v, e);
+		_incEdges[v].push_back(e);
+		_edges[e].v = v;
+	}
+
+	inline void moveEdgeNodeU(EdgeIdType e, NodeIdType u) {
+
+		removeIncEdge(_edges[e].u, e);
+		_incEdges[u].push_back(e);
+		_edges[e].u = u;
+	}
+
+	inline void removeIncEdge(NodeIdType n, EdgeIdType e) {
+
+		auto it = std::find(_incEdges[n].begin(), _incEdges[n].end(), e);
+		assert(it != _incEdges[n].end());
+		_incEdges[n].erase(it);
+		assert(std::find(_incEdges[n].begin(), _incEdges[n].end(), e) == _incEdges[n].end());
 	}
 
 	ID _numNodes;
