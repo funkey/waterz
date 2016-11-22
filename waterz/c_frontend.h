@@ -3,7 +3,23 @@
 
 #include <vector>
 
+#include "backend/IterativeRegionMerging.hpp"
+#include "backend/MergeFunctions.hpp"
+#include "backend/Operators.hpp"
 #include "backend/types.hpp"
+#include "evaluate.hpp"
+
+typedef uint64_t                                                 SegID;
+typedef uint32_t                                                 GtID;
+typedef float                                                    AffValue;
+typedef float                                                    ScoreValue;
+typedef RegionGraph<SegID>                                       RegionGraphType;
+typedef typename RegionGraphType::template EdgeMap<AffValue>     AffinitiesType;
+typedef typename RegionGraphType::template NodeMap<std::size_t>  SizesType;
+typedef IterativeRegionMerging<SegID, ScoreValue>                RegionMergingType;
+
+typedef Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>> ScoringFunctionType;
+
 
 struct Metrics {
 
@@ -13,24 +29,80 @@ struct Metrics {
 	double rand_merge;
 };
 
-struct ZwatershedState {
+struct WaterzState {
 
-	volume_ref_ptr<uint64_t> segmentation;
-	std::shared_ptr<RegionGraph<uint64_t>> region_graph;
-	std::shared_ptr<typename RegionGraph<uint64_t>::template EdgeMap<float>> edge_affinities;
-	std::shared_ptr<typename RegionGraph<uint64_t>::template NodeMap<size_t>> region_sizes;
+	int     context;
+	Metrics metrics;
 };
 
-std::vector<Metrics> process_thresholds(
-		const std::vector<float>& thresholds,
-		size_t width, size_t height, size_t depth,
-		const float* affinity_data,
-		const std::vector<uint64_t*>& segmentation_data,
-		const uint32_t* ground_truth_data = 0);
+class WaterzContext {
 
-ZwatershedState get_initial_state(
-		size_t width, size_t height, size_t depth,
-		const float* affinity_data,
-		uint64_t* segmentation_data);
+public:
+
+	static WaterzContext* createNew() {
+
+		WaterzContext* context = new WaterzContext();
+		context->id = _nextId;
+		_nextId++;
+		_contexts.insert(std::make_pair(context->id, context));
+
+		return context;
+	}
+
+	static WaterzContext* get(int id) {
+
+		if (!_contexts.count(id))
+			return NULL;
+
+		return _contexts.at(id);
+	}
+
+	static void free(int id) {
+
+		WaterzContext* context = get(id);
+
+		if (context) {
+
+			_contexts.erase(id);
+			delete context;
+		}
+	}
+
+	int id;
+
+	std::shared_ptr<RegionGraphType>     regionGraph;
+	std::shared_ptr<AffinitiesType>      edgeAffinities;
+	std::shared_ptr<SizesType>           regionSizes;
+
+	std::shared_ptr<RegionMergingType>   regionMerging;
+	std::shared_ptr<ScoringFunctionType> scoringFunction;
+	volume_ref_ptr<SegID>                segmentation;
+	volume_const_ref_ptr<GtID>           groundtruth;
+
+private:
+
+	WaterzContext() {}
+
+	~WaterzContext() {}
+
+	static std::map<int, WaterzContext*> _contexts;
+	static int _nextId;
+};
+
+WaterzState initialize(
+		size_t          width,
+		size_t          height,
+		size_t          depth,
+		const AffValue* affinity_data,
+		SegID*          segmentation_data,
+		const GtID*     groundtruth_data = NULL,
+		AffValue        affThresholdLow  = 0.0001,
+		AffValue        affThresholdHigh = 0.9999);
+
+void mergeUntil(
+		WaterzState& state,
+		float        threshold);
+
+void free(WaterzState& state);
 
 #endif

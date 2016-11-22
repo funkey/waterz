@@ -1,6 +1,7 @@
 #ifndef MERGE_FUNCTIONS_H__
 #define MERGE_FUNCTIONS_H__
 
+#include <algorithm>
 #include "Operators.hpp"
 
 /**
@@ -16,7 +17,8 @@ public:
 	typedef typename RegionGraphType::NodeIdType  NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType  EdgeIdType;
 
-	MinSize(SizeMapType& regionSizes) :
+	template <typename AffinityMapType>
+	MinSize(AffinityMapType& affinities, SizeMapType& regionSizes) :
 		_regionGraph(regionSizes.getRegionGraph()),
 		_regionSizes(regionSizes) {}
 
@@ -57,7 +59,8 @@ public:
 	typedef typename RegionGraphType::NodeIdType      NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
 
-	MinAffinity(AffinityMapType& affinities) :
+	template <typename SizeMapType>
+	MinAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
 		_affinities(affinities) {}
 
 	/**
@@ -94,7 +97,8 @@ public:
 	typedef typename RegionGraphType::NodeIdType      NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
 
-	MaxAffinity(AffinityMapType& affinities) :
+	template <typename SizeMapType>
+	MaxAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
 		_affinities(affinities) {}
 
 	/**
@@ -131,7 +135,8 @@ public:
 	typedef typename RegionGraphType::NodeIdType      NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
 
-	MedianAffinity(AffinityMapType& affinities) :
+	template <typename SizeMapType>
+	MedianAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
 		_affinities(affinities),
 		_affiliatedEdges(affinities.getRegionGraph()) {}
 

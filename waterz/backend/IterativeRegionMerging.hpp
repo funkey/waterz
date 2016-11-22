@@ -1,6 +1,7 @@
 #ifndef ITERATIVE_REGION_MERGING_H__
 #define ITERATIVE_REGION_MERGING_H__
 
+#include <iostream>
 #include <vector>
 #include <map>
 #include <queue>

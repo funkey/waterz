@@ -1,3 +1,6 @@
+#ifndef WATERZ_EVALUATE_H__
+#define WATERZ_EVALUATE_H__
+
 #include <iostream>
 #include <tuple>
 #include <map>
@@ -9,7 +12,12 @@ template <typename V1, typename V2>
 std::tuple<double,double,double,double>
 compare_volumes(
                  const V1& gt,
-                 const V2& ws, size_t dimX, size_t dimY, size_t dimZ ){
+                 const V2& ws){
+
+	size_t dimX = gt.shape()[0];
+	size_t dimY = gt.shape()[1];
+	size_t dimZ = gt.shape()[2];
+
     double rand_split = 0;
     double rand_merge = 0;
 
@@ -88,4 +96,6 @@ compare_volumes(
     return std::make_tuple(sum_p_ij/sum_t_k,
                           sum_p_ij/sum_s_k,info/sum_log_s,info/sum_log_t);
 }
+
+#endif // WATERZ_EVALUATE_H__
 

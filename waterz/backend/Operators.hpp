@@ -1,5 +1,10 @@
-template <typename ScoreFunction1, typename ScoreFunction2, typename Op>
-class BinaryOperator {
+#ifndef WATERZ_OPERATORS_H__
+#define WATERZ_OPERATORS_H__
+
+#include <functional>
+
+template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
+class BinaryOperator : public ScoreFunction1, public ScoreFunction2 {
 
 public:
 
@@ -7,37 +12,35 @@ public:
 	typedef typename ScoreFunction1::NodeIdType NodeIdType;
 	typedef typename ScoreFunction1::EdgeIdType EdgeIdType;
 
-	BinaryOperator(ScoreFunction1 score1, ScoreFunction2 score2) :
-		_score1(score1),
-		_score2(score2) {}
+	template <typename AffinityMapType, typename SizeMapType>
+	BinaryOperator(AffinityMapType& affinities, SizeMapType& regionSizes) :
+		ScoreFunction1(affinities, regionSizes),
+		ScoreFunction2(affinities, regionSizes) {}
 
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return _op(_score1(e), _score2(e));
+		return _op(ScoreFunction1::operator()(e), ScoreFunction2::operator()(e));
 	}
 
 	void notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		_score1.notifyNodeMerge(from, to);
-		_score2.notifyNodeMerge(from, to);
+		ScoreFunction1::notifyNodeMerge(from, to);
+		ScoreFunction2::notifyNodeMerge(from, to);
 	}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 	
-		_score1.notifyEdgeMerge(from, to);
-		_score2.notifyEdgeMerge(from, to);
+		ScoreFunction1::notifyEdgeMerge(from, to);
+		ScoreFunction2::notifyEdgeMerge(from, to);
 	}
 
 private:
 
-	ScoreFunction1 _score1;
-	ScoreFunction2 _score2;
-
-	Op _op;
+	Op<ScoreType> _op;
 };
 
-template <typename ScoreFunction, typename Op>
-class UnaryOperator {
+template <typename ScoreFunction, template <typename> class Op>
+class UnaryOperator : public ScoreFunction {
 
 public:
 
@@ -45,100 +48,59 @@ public:
 	typedef typename ScoreFunction::NodeIdType NodeIdType;
 	typedef typename ScoreFunction::EdgeIdType EdgeIdType;
 
-	UnaryOperator(ScoreFunction score) :
-		_score(score) {}
+	template <typename AffinityMapType, typename SizeMapType>
+	UnaryOperator(AffinityMapType& affinities, SizeMapType& regionSizes) :
+		ScoreFunction(affinities, regionSizes) {}
 
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return _op(_score(e));
+		return _op(ScoreFunction::operator()(e));
 	}
 
 	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		_score.notifyNodeMerge(from, to);
+		ScoreFunction::notifyNodeMerge(from, to);
 	}
 
 	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 	
-		_score.notifyEdgeMerge(from, to);
+		ScoreFunction::notifyEdgeMerge(from, to);
 	}
 
 private:
 
-	ScoreFunction _score;
-
-	Op _op;
+	Op<ScoreType> _op;
 };
 
-struct OneMinus {
-	template <typename T>
-	inline T operator()(T t) { return 1.0 - t; }
+template <typename T>
+struct one_minus {
+	T operator()(const T& x) const { return 1.0 - x; }
 };
+template <typename T>
+using OneMinus = UnaryOperator<T, one_minus>;
 
-struct Invert {
-	template <typename T>
-	inline T operator()(T t) { return 1.0/t; }
+template <typename T>
+struct invert {
+	T operator()(const T& x) const { return 1.0/x; }
 };
+template <typename T>
+using Invert = UnaryOperator<T, invert>;
 
-struct Square {
-	template <typename T>
-	inline T operator()(T t) { return t*t; }
+template <typename T>
+struct square {
+	T operator()(const T& x) const { return x*x; }
 };
+template <typename T>
+using Square = UnaryOperator<T, square>;
 
-struct Add {
-	template <typename T1, typename T2>
-	inline T1 operator()(T1 a, T2 b) { return a + b; }
-};
+template <typename T1, typename T2>
+using Add = BinaryOperator<T1, T2, std::plus>;
 
-struct Multiply {
-	template <typename T1, typename T2>
-	inline T1 operator()(T1 a, T2 b) { return a*b; }
-};
+template <typename T1, typename T2>
+using Multiply = BinaryOperator<T1, T2, std::multiplies>;
 
-struct Divide {
-	template <typename T1, typename T2>
-	inline T1 operator()(T1 a, T2 b) { return a/b; }
-};
+template <typename T1, typename T2>
+using Divide = BinaryOperator<T1, T2, std::divides>;
 
-/**
- * Convenience wrappers for common operators.
- */
+#endif // WATERZ_OPERATORS_H__
 
-template <typename ScoreFunction>
-UnaryOperator<ScoreFunction, OneMinus>
-oneMinus(ScoreFunction a) {
-	return UnaryOperator<ScoreFunction, OneMinus>(a);
-}
-
-template <typename ScoreFunction>
-UnaryOperator<ScoreFunction, Invert>
-invert(ScoreFunction a) {
-	return UnaryOperator<ScoreFunction, Invert>(a);
-}
-
-template <typename ScoreFunction>
-UnaryOperator<ScoreFunction, Square>
-square(ScoreFunction a) {
-	return UnaryOperator<ScoreFunction, Square>(a);
-}
-
-template <typename ScoreFunction1, typename ScoreFunction2>
-BinaryOperator<ScoreFunction1, ScoreFunction2, Add>
-add(ScoreFunction1 a, ScoreFunction2 b) {
-
-	return BinaryOperator<ScoreFunction1, ScoreFunction2, Add>(a, b);
-}
-
-template <typename ScoreFunction1, typename ScoreFunction2>
-BinaryOperator<ScoreFunction1, ScoreFunction2, Multiply>
-multiply(ScoreFunction1 a, ScoreFunction2 b) {
-
-	return BinaryOperator<ScoreFunction1, ScoreFunction2, Multiply>(a, b);
-}
-
-template <typename ScoreFunction1, typename ScoreFunction2>
-BinaryOperator<ScoreFunction1, ScoreFunction2, Divide>
-divide(ScoreFunction1 a, ScoreFunction2 b) {
-
-	return BinaryOperator<ScoreFunction1, ScoreFunction2, Divide>(a, b);
-}

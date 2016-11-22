@@ -6,124 +6,35 @@
 
 #include "c_frontend.h"
 #include "evaluate.hpp"
-#include "backend/IterativeRegionMerging.hpp"
 #include "backend/MergeFunctions.hpp"
 #include "backend/basic_watershed.hpp"
 #include "backend/region_graph.hpp"
 
-using namespace std;
+std::map<int, WaterzContext*> WaterzContext::_contexts;
+int WaterzContext::_nextId = 0;
 
-// these values based on 5% at iter = 10000
-double LOW=  .0001;
-double HIGH= .9999;
-
-typedef RegionGraph<uint64_t> RegionGraphType;
-
-std::vector<Metrics> process_thresholds(
-		const std::vector<float>& thresholds,
-		size_t width, size_t height, size_t depth,
-		const float* affinity_data,
-		const std::vector<uint64_t*>& segmentation_data,
-		const uint32_t* ground_truth_data) {
-
-	size_t num_voxels = width*height*depth;
-
-	assert(thresholds.size() == segmentation_data.size());
-
-	ZwatershedState state = get_initial_state(
-			width, height, depth,
-			affinity_data,
-			segmentation_data[0]);
-
-	std::vector<Metrics> threshold_metrics;
-
-	IterativeRegionMerging<uint64_t, float> regionMerging(*state.region_graph);
-
-	//MedianAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
-	MaxAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
-	//MinAffinity<RegionGraphType::EdgeMap<float>> mergeFunctionAffinities(*state.edge_affinities);
-
-	MinSize<RegionGraphType::NodeMap<std::size_t>> mergeFunctionRegionSize(*state.region_sizes);
-
-	//auto mergeFunction = mergeFunctionRegionSize;
-	//auto mergeFunction = oneMinus(mergeFunctionAffinities);
-	//auto mergeFunction = divide(
-			//mergeFunctionRegionSize,
-			//square(
-					//mergeFunctionAffinities
-			//)
-	//);
-	//auto mergeFunction = oneMinus(mergeFunctionAffinities);
-	auto mergeFunction = multiply(
-			oneMinus(
-					mergeFunctionAffinities
-			),
-			mergeFunctionRegionSize
-	);
-
-	for (int i = 0; i < thresholds.size(); i++) {
-
-		float threshold = thresholds[i];
-
-		std::cout << "merging until threshold " << threshold << std::endl;
-		regionMerging.mergeUntil(
-				mergeFunction,
-				threshold);
-
-		std::cout << "extracting segmentation" << std::endl;
-
-		// wrap segmentation for current iteration (no copy)
-		volume_ref<uint64_t> current_segmentation(
-				segmentation_data[i],
-				boost::extents[width][height][depth]
-		);
-
-		regionMerging.extractSegmentation(current_segmentation);
-
-		// make a copy of the current segmentation for the next iteration
-		if (i < segmentation_data.size() - 1)
-			std::copy(segmentation_data[i], segmentation_data[i] + num_voxels, segmentation_data[i+1]);
-
-		if (ground_truth_data != 0) {
-
-			std::cout << "evaluating current segmentation against ground-truth" << std::endl;
-
-			// wrap ground-truth (no copy)
-			volume_const_ref<uint32_t> ground_truth(
-					ground_truth_data,
-					boost::extents[width][height][depth]
-			);
-
-			auto m = compare_volumes(ground_truth, current_segmentation, width, height, depth);
-			Metrics metrics;
-			metrics.rand_split = std::get<0>(m);
-			metrics.rand_merge = std::get<1>(m);
-			metrics.voi_split  = std::get<2>(m);
-			metrics.voi_merge  = std::get<3>(m);
-
-			threshold_metrics.push_back(metrics);
-		}
-	}
-
-	return threshold_metrics;
-}
-
-ZwatershedState get_initial_state(
-		size_t width, size_t height, size_t depth,
-		const float* affinity_data,
-		uint64_t* segmentation_data) {
+WaterzState
+initialize(
+		size_t          width,
+		size_t          height,
+		size_t          depth,
+		const AffValue* affinity_data,
+		SegID*          segmentation_data,
+		const GtID*     ground_truth_data,
+		AffValue        affThresholdLow,
+		AffValue        affThresholdHigh) {
 
 	size_t num_voxels = width*height*depth;
 
 	// wrap affinities (no copy)
-	affinity_graph_ref<float> affinities(
+	affinity_graph_ref<AffValue> affinities(
 			affinity_data,
 			boost::extents[3][width][height][depth]
 	);
 
 	// wrap segmentation array (no copy)
-	volume_ref_ptr<uint64_t> segmentation(
-			new volume_ref<uint64_t>(
+	volume_ref_ptr<SegID> segmentation(
+			new volume_ref<SegID>(
 					segmentation_data,
 					boost::extents[width][height][depth]
 			)
@@ -132,7 +43,7 @@ ZwatershedState get_initial_state(
 	std::cout << "performing initial watershed segmentation..." << std::endl;
 
 	counts_t<size_t> counts;
-	watershed(affinities, LOW, HIGH, *segmentation, counts);
+	watershed(affinities, affThresholdLow, affThresholdHigh, *segmentation, counts);
 
 	std::size_t numNodes = counts.size();
 
@@ -164,12 +75,76 @@ ZwatershedState get_initial_state(
 			*regionGraph,
 			*edgeAffinities);
 
-	ZwatershedState initial_state;
-	initial_state.region_graph = regionGraph;
-	initial_state.edge_affinities = edgeAffinities;
-	initial_state.segmentation = segmentation;
-	initial_state.region_sizes = regionSizes;
+	std::shared_ptr<ScoringFunctionType> scoringFunction(
+			new ScoringFunctionType(*edgeAffinities, *regionSizes)
+	);
+
+	std::shared_ptr<RegionMergingType> regionMerging(
+			new RegionMergingType(*regionGraph)
+	);
+
+	WaterzContext* context = WaterzContext::createNew();
+	context->regionGraph     = regionGraph;
+	context->edgeAffinities  = edgeAffinities;
+	context->regionSizes     = regionSizes;
+	context->regionMerging   = regionMerging;
+	context->scoringFunction = scoringFunction;
+	context->segmentation    = segmentation;
+
+	WaterzState initial_state;
+	initial_state.context = context->id;
+
+	if (ground_truth_data != NULL) {
+
+		// wrap ground-truth (no copy)
+		volume_const_ref_ptr<GtID> groundtruth(
+				new volume_const_ref<GtID>(
+						ground_truth_data,
+						boost::extents[width][height][depth]
+				)
+		);
+
+		context->groundtruth = groundtruth;
+	}
 
 	return initial_state;
 }
 
+void
+mergeUntil(
+		WaterzState& state,
+		float        threshold) {
+
+	WaterzContext* context = WaterzContext::get(state.context);
+
+	if (threshold > 0) {
+
+		std::cout << "merging until threshold " << threshold << std::endl;
+
+		context->regionMerging->mergeUntil(
+				*context->scoringFunction,
+				threshold);
+
+		std::cout << "extracting segmentation" << std::endl;
+
+		context->regionMerging->extractSegmentation(*context->segmentation);
+	}
+
+	if (context->groundtruth) {
+
+		std::cout << "evaluating current segmentation against ground-truth" << std::endl;
+
+		auto m = compare_volumes(*context->groundtruth, *context->segmentation);
+
+		state.metrics.rand_split = std::get<0>(m);
+		state.metrics.rand_merge = std::get<1>(m);
+		state.metrics.voi_split  = std::get<2>(m);
+		state.metrics.voi_merge  = std::get<3>(m);
+	}
+}
+
+void
+free(WaterzState& state) {
+
+	WaterzContext::free(state.context);
+}

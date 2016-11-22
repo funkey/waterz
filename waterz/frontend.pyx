@@ -3,7 +3,7 @@ from libc.stdint cimport uint64_t, uint32_t
 import numpy as np
 cimport numpy as np
 
-def agglomerate(np.ndarray[np.float32_t, ndim=4] affs, thresholds, np.ndarray[uint32_t, ndim=3] gt = None):
+def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999):
     '''
     Compute segmentations from an affinity graph for several thresholds.
 
@@ -31,19 +31,21 @@ def agglomerate(np.ndarray[np.float32_t, ndim=4] affs, thresholds, np.ndarray[ui
     Returns
     -------
 
-        segmentations
+        Segmentations (and metrics) are returned as generator objects, and only
+        computed on-the-fly when iterated over. This way, you can ask for
+        hundreds of thresholds while at any point only one segmentation is
+        stored in memory.
 
-            List of segmentations (numpy arrays, uint64, 3 dimensional).
+        [segmentation]
 
-        (segmentations, metrics)
+            Generator object for segmentations (numpy arrays, uint64, 3 dimensional).
 
-            Tuple of segmentations and metrics, if ground-truth volume was
-            given.
+        [(segmentation, metrics)]
+
+            Generator object for tuples of segmentations and metrics, if ground-truth volume was
+            given. Metrics are given as a dictionary with the keys
+            'V_Rand_split', 'V_Rand_merge', 'V_Info_split', and 'V_Info_merge'.
     '''
-
-    cdef vector[uint64_t*]            segmentation_data
-    cdef np.ndarray[uint64_t, ndim=3] segmentation
-    cdef uint32_t*                    gt_data = NULL
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
@@ -54,48 +56,56 @@ def agglomerate(np.ndarray[np.float32_t, ndim=4] affs, thresholds, np.ndarray[ui
         print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
         gt = np.ascontiguousarray(gt)
 
-    print("Preparing segmentation volumes...")
+    print("Preparing segmentation volume...")
 
-    segmentations = []
     volume_shape = (affs.shape[1], affs.shape[2], affs.shape[3])
     thresholds.sort()
-    for i in range(len(thresholds)):
-        segmentation = np.zeros(volume_shape, dtype=np.uint64)
-        segmentations.append(segmentation)
-        segmentation_data.push_back(&segmentation[0,0,0])
+    segmentation = np.zeros(volume_shape, dtype=np.uint64)
 
+    cdef WaterzState state = __initialize(affs, segmentation, gt, aff_threshold_low, aff_threshold_high)
+
+    for threshold in thresholds:
+
+        mergeUntil(state, threshold)
+
+        print("Yielding")
+
+        if gt is not None:
+            stats = {}
+            stats['V_Rand_split'] = state.metrics.rand_split
+            stats['V_Rand_merge'] = state.metrics.rand_merge
+            stats['V_Info_split'] = state.metrics.voi_split
+            stats['V_Info_merge'] = state.metrics.voi_merge
+
+            yield (segmentation, stats)
+
+        yield segmentation
+
+    free(state)
+
+def __initialize(
+        np.ndarray[np.float32_t, ndim=4] affs,
+        np.ndarray[uint64_t, ndim=3]     segmentation,
+        np.ndarray[uint32_t, ndim=3]     gt = None,
+        aff_threshold_low  = 0.0001,
+        aff_threshold_high = 0.9999):
+
+    cdef float*    aff_data
+    cdef uint64_t* segmentation_data
+    cdef uint32_t* gt_data = NULL
+
+    aff_data = &affs[0,0,0,0]
+    segmentation_data = &segmentation[0,0,0]
     if gt is not None:
         gt_data = &gt[0,0,0]
 
-    print("Processing thresholds")
-
-    metrics = process_thresholds(
-        thresholds,
+    return initialize(
         affs.shape[1], affs.shape[2], affs.shape[3],
-        &affs[0, 0, 0, 0],
+        aff_data,
         segmentation_data,
-        gt_data)
-
-    if gt is not None:
-        stats = {
-            'V_Rand'      : 0,
-            'V_Rand_split': [],
-            'V_Rand_merge': [],
-            'V_Info'      : 0,
-            'V_Info_split': [],
-            'V_Info_merge': []
-        }
-        for metric in metrics:
-            rand_f_score = 2.0/(1.0/metric.rand_split + 1.0/metric.rand_merge)
-            voi_score = 2.0/(1.0/metric.voi_split + 1.0/metric.voi_merge)
-            stats['V_Rand'] = max(stats['V_Rand'], rand_f_score)
-            stats['V_Rand_split'].append(metric.rand_split)
-            stats['V_Rand_merge'].append(metric.rand_merge)
-            stats['V_Info'] = max(stats['V_Info'], voi_score)
-            stats['V_Info_split'].append(metric.voi_split)
-            stats['V_Info_merge'].append(metric.voi_merge)
-        return (segmentations, stats)
-    return segmentations
+        gt_data,
+        aff_threshold_low,
+        aff_threshold_high)
 
 cdef extern from "c_frontend.h":
 
@@ -105,9 +115,23 @@ cdef extern from "c_frontend.h":
         double rand_split
         double rand_merge
 
-    vector[Metrics] process_thresholds(
-            vector[float] thresholds,
-            size_t width, size_t height, size_t depth,
-            np.float32_t* affs,
-            vector[uint64_t*]& segmentation_data,
-            uint32_t* gt_data)
+    struct WaterzState:
+
+        int     context
+        Metrics metrics
+
+    WaterzState initialize(
+            size_t          width,
+            size_t          height,
+            size_t          depth,
+            const float*    affinity_data,
+            uint64_t*       segmentation_data,
+            const uint32_t* groundtruth_data,
+            float           affThresholdLow,
+            float           affThresholdHigh);
+
+    void mergeUntil(
+            WaterzState& state,
+            float        threshold)
+
+    void free(WaterzState& state)

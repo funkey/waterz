@@ -1,6 +1,7 @@
 #ifndef REGION_GRAPH_H__
 #define REGION_GRAPH_H__
 
+#include <algorithm>
 #include <vector>
 #include <limits>
 #include <cassert>
