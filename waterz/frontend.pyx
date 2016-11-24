@@ -71,6 +71,7 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
         print("Yielding")
 
         if gt is not None:
+
             stats = {}
             stats['V_Rand_split'] = state.metrics.rand_split
             stats['V_Rand_merge'] = state.metrics.rand_merge
@@ -79,7 +80,9 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
 
             yield (segmentation, stats)
 
-        yield segmentation
+        else:
+
+            yield segmentation
 
     free(state)
 
