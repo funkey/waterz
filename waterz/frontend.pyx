@@ -68,8 +68,6 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
 
         mergeUntil(state, threshold)
 
-        print("Yielding")
-
         if gt is not None:
 
             stats = {}
