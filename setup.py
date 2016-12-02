@@ -30,7 +30,7 @@ class build_ext(_build_ext):
 
 setup(
         name='waterz',
-        version='0.1',
+        version='0.2',
         description='Simple watershed and agglomeration for affinity graphs.',
         url='https://github.com/funkey/waterz',
         author='Jan Funke',
