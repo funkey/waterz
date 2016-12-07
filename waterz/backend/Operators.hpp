@@ -2,6 +2,7 @@
 #define WATERZ_OPERATORS_H__
 
 #include <functional>
+#include <limits>
 
 template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
 class BinaryOperator : public ScoreFunction1, public ScoreFunction2 {
@@ -88,7 +89,10 @@ using Invert = UnaryOperator<T, invert>;
 
 template <typename T>
 struct square {
-	T operator()(const T& x) const { return x*x; }
+	T operator()(const T& x) const {
+
+		return x*x;
+	}
 };
 template <typename T>
 using Square = UnaryOperator<T, square>;
@@ -99,8 +103,25 @@ using Add = BinaryOperator<T1, T2, std::plus>;
 template <typename T1, typename T2>
 using Multiply = BinaryOperator<T1, T2, std::multiplies>;
 
+template <typename T>
+struct save_divide {
+
+	T operator()(const T& a, const T& b) const {
+
+		if (std::abs(b) <= std::numeric_limits<T>::min()) {
+
+			if (std::signbit(a*b)) // a*b < 0
+				return std::numeric_limits<T>::lowest();
+			else
+				return std::numeric_limits<T>::max();
+		}
+
+		return a/b;
+	}
+};
+
 template <typename T1, typename T2>
-using Divide = BinaryOperator<T1, T2, std::divides>;
+using Divide = BinaryOperator<T1, T2, save_divide>;
 
 #endif // WATERZ_OPERATORS_H__
 
