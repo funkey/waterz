@@ -13,7 +13,7 @@ class MinSize {
 public:
 
 	typedef typename SizeMapType::RegionGraphType RegionGraphType;
-	typedef typename SizeMapType::ValueType       ScoreType;
+	typedef float                                 ScoreType;
 	typedef typename RegionGraphType::NodeIdType  NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType  EdgeIdType;
 
