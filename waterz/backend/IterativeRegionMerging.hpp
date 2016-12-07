@@ -54,7 +54,11 @@ public:
 
 		std::cout << "merging until " << threshold << std::endl;
 
+		if (_edgeQueue.size() > 0)
+			std::cout << "min edge score " << _edgeScores[_edgeQueue.top()] << std::endl;
+
 		// while there are still unhandled edges
+		std::size_t merged = 0;
 		while (_edgeQueue.size() > 0) {
 
 			// get the next cheapest edge to merge
@@ -87,7 +91,10 @@ public:
 			}
 
 			mergeRegions(next, edgeScoringFunction);
+			merged++;
 		}
+
+		std::cout << "merged " << merged << " edges" << std::endl;
 
 		_mergedUntil = threshold;
 	}
