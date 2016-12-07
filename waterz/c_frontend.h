@@ -18,7 +18,9 @@ typedef typename RegionGraphType::template EdgeMap<AffValue>     AffinitiesType;
 typedef typename RegionGraphType::template NodeMap<std::size_t>  SizesType;
 typedef IterativeRegionMerging<SegID, ScoreValue>                RegionMergingType;
 
-typedef Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>> ScoringFunctionType;
+//typedef Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>> ScoringFunctionType;
+//typedef Multiply<OneMinus<MedianAffinity<AffinitiesType>>, MinSize<SizesType>> ScoringFunctionType;
+typedef Divide<MinSize<SizesType>, Square<MaxAffinity<AffinitiesType>>> ScoringFunctionType;
 
 
 struct Metrics {
