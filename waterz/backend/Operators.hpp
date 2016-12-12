@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <limits>
+#include <cmath>
 
 template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
 class BinaryOperator : public ScoreFunction1, public ScoreFunction2 {
