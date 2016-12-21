@@ -4,48 +4,6 @@ import numpy as np
 cimport numpy as np
 
 def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999):
-    '''
-    Compute segmentations from an affinity graph for several thresholds.
-
-    Passed volumes need to be converted into contiguous memory arrays. This will
-    be done for you if needed, but you can save memory by making sure your
-    volumes are already C_CONTIGUOUS.
-
-    Parameters
-    ----------
-
-        affs: numpy array, float32, 4 dimensional
-
-            The affinities as an array with affs[channel][z][y][x].
-
-        thresholds: list of float32
-
-            The thresholds to compute segmentations for. For each threshold, one
-            segmentation is returned.
-
-        gt  : numpy array, uint32, 3 dimensional (optional)
-
-            An optional ground-truth segmentation as an array with gt[z][y][x].
-            If given, metrics
-
-    Returns
-    -------
-
-        Segmentations (and metrics) are returned as generator objects, and only
-        computed on-the-fly when iterated over. This way, you can ask for
-        hundreds of thresholds while at any point only one segmentation is
-        stored in memory.
-
-        [segmentation]
-
-            Generator object for segmentations (numpy arrays, uint64, 3 dimensional).
-
-        [(segmentation, metrics)]
-
-            Generator object for tuples of segmentations and metrics, if ground-truth volume was
-            given. Metrics are given as a dictionary with the keys
-            'V_Rand_split', 'V_Rand_merge', 'V_Info_split', and 'V_Info_merge'.
-    '''
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
