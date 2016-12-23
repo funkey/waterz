@@ -117,13 +117,13 @@ mergeUntil(
 
 	WaterzContext* context = WaterzContext::get(state.context);
 
-	if (threshold > 0) {
+	std::cout << "merging until threshold " << threshold << std::endl;
 
-		std::cout << "merging until threshold " << threshold << std::endl;
+	std::size_t merged = context->regionMerging->mergeUntil(
+			*context->scoringFunction,
+			threshold);
 
-		context->regionMerging->mergeUntil(
-				*context->scoringFunction,
-				threshold);
+	if (merged) {
 
 		std::cout << "extracting segmentation" << std::endl;
 

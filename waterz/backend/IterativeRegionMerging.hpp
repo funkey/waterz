@@ -6,6 +6,7 @@
 #include <map>
 #include <queue>
 #include <cassert>
+#include <limits>
 
 #include "RegionGraph.hpp"
 
@@ -27,24 +28,24 @@ public:
 		_deleted(initialRegionGraph),
 		_stale(initialRegionGraph),
 		_edgeQueue(EdgeCompare(_edgeScores)),
-		_mergedUntil(0) {}
+		_mergedUntil(std::numeric_limits<ScoreType>::lowest()) {}
 
 	/**
 	 * Merge a RAG with the given edge scoring function until the given threshold.
 	 */
 	template <typename EdgeScoringFunction>
-	void mergeUntil(
+	std::size_t mergeUntil(
 			EdgeScoringFunction& edgeScoringFunction,
 			ScoreType threshold) {
 
 		if (threshold <= _mergedUntil) {
 
 			std::cout << "already merged until " << threshold << ", skipping" << std::endl;
-			return;
+			return 0;
 		}
 
 		// compute scores of each edge not scored so far
-		if (_mergedUntil == 0) {
+		if (_mergedUntil == std::numeric_limits<ScoreType>::lowest()) {
 
 			std::cout << "computing initial scores" << std::endl;
 
@@ -97,6 +98,8 @@ public:
 		std::cout << "merged " << merged << " edges" << std::endl;
 
 		_mergedUntil = threshold;
+
+		return merged;
 	}
 
 	/**
