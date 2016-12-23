@@ -124,5 +124,18 @@ struct save_divide {
 template <typename T1, typename T2>
 using Divide = BinaryOperator<T1, T2, save_divide>;
 
+template <typename T>
+struct step {
+
+	T operator()(const T& a, const T& b) const {
+
+		if (a < b)
+			return 0;
+		return 1;
+	}
+};
+template <typename T1, typename T2>
+using Step = BinaryOperator<T1, T2, step>;
+
 #endif // WATERZ_OPERATORS_H__
 
