@@ -103,8 +103,10 @@ def agglomerate(
 
     try:
 
-        if not os.path.exists(lib_dir):
+        try:
             os.makedirs(lib_dir)
+        except:
+            pass
         if lib_dir not in sys.path:
             sys.path.append(lib_dir)
         if force_rebuild:
@@ -116,12 +118,12 @@ def agglomerate(
 
     except ImportError:
 
-        print("Compiling waterz in " + str(source_dir))
+        print("Compiling waterz in " + str(lib_dir))
 
         cython_include_dirs = ['.']
         ctx = Context(cython_include_dirs, default_options)
 
-        scoring_function_include_dir = os.path.join(source_dir, module_name)
+        scoring_function_include_dir = os.path.join(lib_dir, module_name)
         if not os.path.exists(scoring_function_include_dir):
             os.makedirs(scoring_function_include_dir)
 
@@ -140,7 +142,11 @@ def agglomerate(
         # cython requires that the pyx file has the same name as the module
         shutil.copy(
                 os.path.join(source_dir, 'frontend.pyx'),
-                os.path.join(source_dir, module_name + '.pyx')
+                os.path.join(lib_dir, module_name + '.pyx')
+        )
+        shutil.copy(
+                os.path.join(source_dir, 'c_frontend.cpp'),
+                os.path.join(lib_dir, module_name + '_c_frontend.cpp')
         )
 
         # Remove the "-Wstrict-prototypes" compiler option, which isn't valid 
@@ -152,8 +158,8 @@ def agglomerate(
         extension = Extension(
                 module_name,
                 sources = [
-                    os.path.join(source_dir, module_name + '.pyx'),
-                    os.path.join(source_dir, 'c_frontend.cpp')
+                    os.path.join(lib_dir, module_name + '.pyx'),
+                    os.path.join(lib_dir, module_name + '_c_frontend.cpp')
                 ],
                 include_dirs=include_dirs,
                 language='c++',
