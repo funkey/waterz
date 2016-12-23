@@ -2,6 +2,7 @@
 #define MERGE_FUNCTIONS_H__
 
 #include <algorithm>
+#include <random>
 #include "Operators.hpp"
 
 /**
@@ -43,7 +44,49 @@ public:
 private:
 
 	const RegionGraphType& _regionGraph;
-	SizeMapType&           _regionSizes;
+	SizeMapType            _regionSizes;
+};
+
+/**
+ * Scores edges with max size of incident regions.
+ */
+template <typename SizeMapType>
+class MaxSize {
+
+public:
+
+	typedef typename SizeMapType::RegionGraphType RegionGraphType;
+	typedef float                                 ScoreType;
+	typedef typename RegionGraphType::NodeIdType  NodeIdType;
+	typedef typename RegionGraphType::EdgeIdType  EdgeIdType;
+
+	template <typename AffinityMapType>
+	MaxSize(AffinityMapType& affinities, SizeMapType& regionSizes) :
+		_regionGraph(regionSizes.getRegionGraph()),
+		_regionSizes(regionSizes) {}
+
+	/**
+	 * Get the score for an edge. An edge will be merged the earlier, the 
+	 * smaller its score is.
+	 */
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return std::max(
+				_regionSizes[_regionGraph.edge(e).u],
+				_regionSizes[_regionGraph.edge(e).v]);
+	}
+
+	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
+
+		_regionSizes[to] += _regionSizes[from];
+	}
+
+	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
+
+private:
+
+	const RegionGraphType& _regionGraph;
+	SizeMapType            _regionSizes;
 };
 
 /**
@@ -197,6 +240,64 @@ private:
 	//
 	// initial edges will have this empty
 	typename RegionGraphType::template EdgeMap<std::vector<EdgeIdType>> _affiliatedEdges;
+};
+
+/**
+ * Scores edges with a random number between 0 and 1.
+ */
+template <typename RegionGraphType>
+class Random {
+
+public:
+
+	typedef float                                ScoreType;
+	typedef typename RegionGraphType::NodeIdType NodeIdType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+
+	template <typename AffinityMapType, typename SizeMapType>
+	Random(AffinityMapType&, SizeMapType&) {}
+
+	/**
+	 * Get the score for an edge. An edge will be merged the earlier, the 
+	 * smaller its score is.
+	 */
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return ScoreType(rand())/RAND_MAX;
+	}
+
+	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
+
+	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
+};
+
+/**
+ * Scores edges with a constant.
+ */
+template <typename RegionGraphType, int C>
+class Const {
+
+public:
+
+	typedef float                                ScoreType;
+	typedef typename RegionGraphType::NodeIdType NodeIdType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+
+	template <typename AffinityMapType, typename SizeMapType>
+	Const(AffinityMapType&, SizeMapType&) {}
+
+	/**
+	 * Get the score for an edge. An edge will be merged the earlier, the 
+	 * smaller its score is.
+	 */
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return C;
+	}
+
+	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
+
+	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
 };
 
 #endif // MERGE_FUNCTIONS_H__
