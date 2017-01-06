@@ -96,7 +96,7 @@ def agglomerate(
     ]
     source_files += glob.glob(source_dir + '/backend/*.hpp')
     source_files.sort()
-    source_files_hashes = [ hashlib.md5(open(f, 'r').read()).hexdigest() for f in source_files ]
+    source_files_hashes = [ hashlib.md5(open(f, 'r').read().encode('utf-8')).hexdigest() for f in source_files ]
 
     key = scoring_function, source_files_hashes, sys.version_info, sys.executable, Cython.__version__
     module_name = 'waterz_' + hashlib.md5(str(key).encode('utf-8')).hexdigest()
