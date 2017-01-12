@@ -29,6 +29,14 @@ struct Metrics {
 	double rand_merge;
 };
 
+struct Merge {
+
+	SegID a;
+	SegID b;
+	SegID c;
+	ScoreValue score;
+};
+
 struct WaterzState {
 
 	int     context;
@@ -89,6 +97,22 @@ private:
 	static int _nextId;
 };
 
+class MergeHistoryVisitor {
+
+public:
+
+	MergeHistoryVisitor(std::vector<Merge>& history) : _history(history) {}
+
+	void onMerge(SegID a, SegID b, SegID c, ScoreValue score) {
+
+		_history.push_back({a, b, c, score});
+	}
+
+private:
+
+	std::vector<Merge>& _history;
+};
+
 WaterzState initialize(
 		size_t          width,
 		size_t          height,
@@ -99,7 +123,7 @@ WaterzState initialize(
 		AffValue        affThresholdLow  = 0.0001,
 		AffValue        affThresholdHigh = 0.9999);
 
-void mergeUntil(
+std::vector<Merge> mergeUntil(
 		WaterzState& state,
 		float        threshold);
 

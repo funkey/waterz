@@ -33,10 +33,11 @@ public:
 	/**
 	 * Merge a RAG with the given edge scoring function until the given threshold.
 	 */
-	template <typename EdgeScoringFunction>
+	template <typename EdgeScoringFunction, typename MergeVisitor>
 	std::size_t mergeUntil(
 			EdgeScoringFunction& edgeScoringFunction,
-			ScoreType threshold) {
+			ScoreType threshold,
+			MergeVisitor& mergeVisitor) {
 
 		if (threshold <= _mergedUntil) {
 
@@ -91,8 +92,14 @@ public:
 				continue;
 			}
 
-			mergeRegions(next, edgeScoringFunction);
+			NodeIdType newRegion = mergeRegions(next, edgeScoringFunction);
 			merged++;
+
+			mergeVisitor.onMerge(
+					_regionGraph.edge(next).u,
+					_regionGraph.edge(next).v,
+					newRegion,
+					score);
 		}
 
 		std::cout << "merged " << merged << " edges" << std::endl;
@@ -145,7 +152,7 @@ private:
 	 * Merge regions a and b.
 	 */
 	template <typename EdgeScoringFunction>
-	void mergeRegions(
+	NodeIdType mergeRegions(
 			EdgeIdType e,
 			EdgeScoringFunction& edgeScoringFunction) {
 
@@ -222,6 +229,9 @@ private:
 				}
 			}
 		}
+
+		// the new node
+		return a;
 	}
 
 	/**

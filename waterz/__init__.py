@@ -4,6 +4,7 @@ def agglomerate(
         gt = None,
         aff_threshold_low  = 0.0001,
         aff_threshold_high = 0.9999,
+        return_merge_history = False,
         scoring_function = 'Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>>',
         force_rebuild = False):
     '''
@@ -35,6 +36,11 @@ def agglomerate(
 
             Thresholds on the affinities for the initial segmentation step.
 
+        return_merge_history: bool
+
+            If set to True, the returning tuple will contain a merge history,
+            relative to the previous segmentation.
+
         scoring_function: string, default 'Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>>'
 
             A C++ type string specifying the edge scoring function to use. See
@@ -54,20 +60,46 @@ def agglomerate(
     Returns
     -------
 
-        Segmentations (and metrics) are returned as generator objects, and only
+        Results are returned as tuples from a generator object, and only
         computed on-the-fly when iterated over. This way, you can ask for
         hundreds of thresholds while at any point only one segmentation is
         stored in memory.
 
-        [segmentation]
+        Depending on the given parameters, the returned values are a subset of
+        the following items (in that order):
 
-            Generator object for segmentations (numpy arrays, uint64, 3 dimensional).
+        segmentation
 
-        [(segmentation, metrics)]
+            The current segmentation (numpy array, uint64, 3 dimensional).
 
-            Generator object for tuples of segmentations and metrics, if ground-truth volume was
-            given. Metrics are given as a dictionary with the keys
-            'V_Rand_split', 'V_Rand_merge', 'V_Info_split', and 'V_Info_merge'.
+        metrics (only if ground truth was provided)
+
+            A  dictionary with the keys 'V_Rand_split', 'V_Rand_merge',
+            'V_Info_split', and 'V_Info_merge'.
+
+        merge_history (only if return_merge_history is True)
+
+            A list of dictionaries with keys 'a', 'b', 'c', and 'score',
+            indicating that region a got merged with b into c with the given
+            score.
+
+    Examples
+    --------
+
+        affs = ...
+        gt   = ...
+
+        # only segmentation
+        for segmentation in agglomerate(affs, range(100,10000,100)):
+            # ...
+
+        # segmentation with merge history
+        for segmentation, merge_history in agglomerate(affs, range(100,10000,100), return_merge_history = True):
+            # ...
+
+        # segmentation with merge history and metrics compared to gt
+        for segmentation, metrics, merge_history in agglomerate(affs, range(100,10000,100), gt, return_merge_history = True):
+            # ...
     '''
 
     import sys, os
@@ -185,4 +217,4 @@ def agglomerate(
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-    return __import__(module_name).agglomerate(affs, thresholds, gt, aff_threshold_low, aff_threshold_high)
+    return __import__(module_name).agglomerate(affs, thresholds, gt, aff_threshold_low, aff_threshold_high, return_merge_history)

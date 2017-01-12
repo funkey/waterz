@@ -110,7 +110,7 @@ initialize(
 	return initial_state;
 }
 
-void
+std::vector<Merge>
 mergeUntil(
 		WaterzState& state,
 		float        threshold) {
@@ -119,9 +119,13 @@ mergeUntil(
 
 	std::cout << "merging until threshold " << threshold << std::endl;
 
+	std::vector<Merge>  mergeHistory;
+	MergeHistoryVisitor mergeHistoryVisitor(mergeHistory);
+
 	std::size_t merged = context->regionMerging->mergeUntil(
 			*context->scoringFunction,
-			threshold);
+			threshold,
+			mergeHistoryVisitor);
 
 	if (merged) {
 
@@ -141,6 +145,8 @@ mergeUntil(
 		state.metrics.voi_split  = std::get<2>(m);
 		state.metrics.voi_merge  = std::get<3>(m);
 	}
+
+	return mergeHistory;
 }
 
 void

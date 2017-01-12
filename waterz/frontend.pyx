@@ -3,7 +3,7 @@ from libc.stdint cimport uint64_t, uint32_t
 import numpy as np
 cimport numpy as np
 
-def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999):
+def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999, return_merge_history = False):
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
@@ -24,7 +24,9 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
 
     for threshold in thresholds:
 
-        mergeUntil(state, threshold)
+        merge_history = mergeUntil(state, threshold)
+
+        result = (segmentation,)
 
         if gt is not None:
 
@@ -34,11 +36,16 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
             stats['V_Info_split'] = state.metrics.voi_split
             stats['V_Info_merge'] = state.metrics.voi_merge
 
-            yield (segmentation, stats)
+            result += (stats,)
 
+        if return_merge_history:
+
+            result += (merge_history,)
+
+        if len(result) == 1:
+            yield result[0]
         else:
-
-            yield segmentation
+            yield result
 
     free(state)
 
@@ -74,8 +81,13 @@ cdef extern from "c_frontend.h":
         double rand_split
         double rand_merge
 
-    struct WaterzState:
+    struct Merge:
+        uint64_t a
+        uint64_t b
+        uint64_t c
+        double score
 
+    struct WaterzState:
         int     context
         Metrics metrics
 
@@ -89,7 +101,7 @@ cdef extern from "c_frontend.h":
             float           affThresholdLow,
             float           affThresholdHigh);
 
-    void mergeUntil(
+    vector[Merge] mergeUntil(
             WaterzState& state,
             float        threshold)
 
