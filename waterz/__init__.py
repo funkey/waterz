@@ -47,6 +47,10 @@ def agglomerate(
 
             for operators to combine them.
 
+        force_rebuild:
+
+            Force the rebuild of the module. Only needed for development.
+
     Returns
     -------
 
