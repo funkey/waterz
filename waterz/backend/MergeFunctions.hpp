@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <random>
 #include "Operators.hpp"
+#include "Histogram.hpp"
 
 /**
  * Scores edges with min size of incident regions.
@@ -128,9 +129,14 @@ private:
 };
 
 /**
- * Scores edges with median affinity.
+ * Scores edges with a quantile affinity. The quantile is approximated by 
+ * keeping track of a histogram of affinity values. This approximation is exact 
+ * if the number of bins corresponds to the discretization of the affinities. 
+ * The default is to use 256 bins.
+ *
+ * Affinities are assumed to be in [0,1].
  */
-template <typename AffinityMapType, int Quantile>
+template <typename AffinityMapType, int Quantile, int Bins = 256>
 class QuantileAffinity {
 
 public:
@@ -139,11 +145,17 @@ public:
 	typedef typename AffinityMapType::ValueType       ScoreType;
 	typedef typename RegionGraphType::NodeIdType      NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+	typedef Histogram<Bins>                           HistogramType;
 
 	template <typename SizeMapType>
 	QuantileAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
 		_affinities(affinities),
-		_affiliatedEdges(affinities.getRegionGraph()) {}
+		_histograms(affinities.getRegionGraph()) {
+
+		std::cout << "Initializing affinity histograms..." << std::endl;
+		for (EdgeIdType e = 0; e < affinities.getRegionGraph().numEdges(); e++)
+			_histograms[e].inc((int)(_affinities[e]*(Bins-1)));
+	}
 
 	/**
 	 * Get the score for an edge. An edge will be merged the earlier, the 
@@ -151,57 +163,37 @@ public:
 	 */
 	ScoreType operator()(EdgeIdType e) {
 
-		std::vector<EdgeIdType>& affiliatedEdges = _affiliatedEdges[e];
+		const HistogramType& histogram = _histograms[e];
 
-		// initial edges have their own affinity
-		if (affiliatedEdges.size() == 0)
-			return _affinities[e];
+		// pivot element, 1-based index
+		int pivot = Quantile*histogram.sum()/100 + 1;
 
-		// edges resulting from merges consult their affiliated edges
+		int sum = 0;
+		int bin = 0;
+		for (bin = 0; bin < Bins; bin++) {
 
-		auto quantile = affiliatedEdges.begin() + (affiliatedEdges.size() - 1)*Quantile/100;
-		std::nth_element(
-				affiliatedEdges.begin(),
-				quantile,
-				affiliatedEdges.end(),
-				[this](EdgeIdType a, EdgeIdType b){
+			sum += histogram[bin];
 
-					return _affinities[a] < _affinities[b];
-				}
-		);
+			if (sum >= pivot)
+				break;
+		}
 
-		return _affinities[*quantile];
+		return (float)bin/(Bins-1);
 	}
 
 	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		if (_affiliatedEdges[from].size() == 0)
-			// 'from' is an initial edge
-			_affiliatedEdges[to].push_back(from);
-		else
-			// 'from' is a compound edge, copy its affiliated edges to the new 
-			// affiliated edge list
-			std::copy(
-					_affiliatedEdges[from].begin(),
-					_affiliatedEdges[from].end(),
-					std::back_inserter(_affiliatedEdges[to]));
-
-		// clear affiliated edges of merged region edges -- they are not 
-		// needed anymore
-		_affiliatedEdges[from].clear();
+		_histograms[to] += _histograms[from];
 	}
 
 private:
 
 	const AffinityMapType& _affinities;
 
-	// for every new edge between regions u and v, the edges of the initial RAG 
-	// between any child of u and any child of v
-	//
-	// initial edges will have this empty
-	typename RegionGraphType::template EdgeMap<std::vector<EdgeIdType>> _affiliatedEdges;
+	// a histogram of affinities for each edge
+	typename RegionGraphType::template EdgeMap<HistogramType> _histograms;
 };
 
 /**
