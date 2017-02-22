@@ -177,6 +177,9 @@ public:
 
 	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
+		if (_affiliatedEdges[to].size() == 0)
+			_affiliatedEdges[to].push_back(to);
+
 		if (_affiliatedEdges[from].size() == 0)
 			// 'from' is an initial edge
 			_affiliatedEdges[to].push_back(from);
@@ -291,6 +294,9 @@ public:
 	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+
+		if (_affiliatedEdges[to].size() == 0)
+			_affiliatedEdges[to].push_back(to);
 
 		if (_affiliatedEdges[from].size() == 0)
 			// 'from' is an initial edge
