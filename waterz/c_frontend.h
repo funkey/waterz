@@ -121,7 +121,8 @@ WaterzState initialize(
 		SegID*          segmentation_data,
 		const GtID*     groundtruth_data = NULL,
 		AffValue        affThresholdLow  = 0.0001,
-		AffValue        affThresholdHigh = 0.9999);
+		AffValue        affThresholdHigh = 0.9999,
+		bool            findFragments = true);
 
 std::vector<Merge> mergeUntil(
 		WaterzState& state,

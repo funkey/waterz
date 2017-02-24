@@ -2,6 +2,7 @@ def agglomerate(
         affs,
         thresholds,
         gt = None,
+        fragments = None,
         aff_threshold_low  = 0.0001,
         aff_threshold_high = 0.9999,
         return_merge_history = False,
@@ -30,6 +31,11 @@ def agglomerate(
 
             An optional ground-truth segmentation as an array with gt[z][y][x].
             If given, metrics
+
+        fragments: numpy array, uint64, 3 dimensional (optional)
+
+            An optional volume of fragments to use, instead of the build-in 
+            zwatershed.
 
         aff_threshold_low: float, default 0.0001
         aff_threshold_high: float, default 0.9999,
@@ -217,4 +223,4 @@ def agglomerate(
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-    return __import__(module_name).agglomerate(affs, thresholds, gt, aff_threshold_low, aff_threshold_high, return_merge_history)
+    return __import__(module_name).agglomerate(affs, thresholds, gt, fragments, aff_threshold_low, aff_threshold_high, return_merge_history)

@@ -1,9 +1,10 @@
 from libcpp.vector cimport vector
 from libc.stdint cimport uint64_t, uint32_t
+from libcpp cimport bool
 import numpy as np
 cimport numpy as np
 
-def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999, return_merge_history = False):
+def agglomerate(affs, thresholds, gt = None, fragments = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999, return_merge_history = False):
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
@@ -13,15 +14,23 @@ def agglomerate(affs, thresholds, gt = None, aff_threshold_low  = 0.0001, aff_th
     if gt is not None and not gt.flags['C_CONTIGUOUS']:
         print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
         gt = np.ascontiguousarray(gt)
+    if fragments is not None and not fragments.flags['C_CONTIGUOUS']:
+        print("Creating memory-contiguous fragments arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        fragments = np.ascontiguousarray(fragments)
 
     print("Preparing segmentation volume...")
 
-    volume_shape = (affs.shape[1], affs.shape[2], affs.shape[3])
+    if fragments is None:
+        volume_shape = (affs.shape[1], affs.shape[2], affs.shape[3])
+        segmentation = np.zeros(volume_shape, dtype=np.uint64)
+        find_fragments = True
+    else:
+        segmentation = fragments
+        find_fragments = False
+
+    cdef WaterzState state = __initialize(affs, segmentation, gt, aff_threshold_low, aff_threshold_high, find_fragments)
+
     thresholds.sort()
-    segmentation = np.zeros(volume_shape, dtype=np.uint64)
-
-    cdef WaterzState state = __initialize(affs, segmentation, gt, aff_threshold_low, aff_threshold_high)
-
     for threshold in thresholds:
 
         merge_history = mergeUntil(state, threshold)
@@ -54,7 +63,8 @@ def __initialize(
         np.ndarray[uint64_t, ndim=3]     segmentation,
         np.ndarray[uint32_t, ndim=3]     gt = None,
         aff_threshold_low  = 0.0001,
-        aff_threshold_high = 0.9999):
+        aff_threshold_high = 0.9999,
+        find_fragments = True):
 
     cdef float*    aff_data
     cdef uint64_t* segmentation_data
@@ -71,7 +81,8 @@ def __initialize(
         segmentation_data,
         gt_data,
         aff_threshold_low,
-        aff_threshold_high)
+        aff_threshold_high,
+        find_fragments)
 
 cdef extern from "c_frontend.h":
 
@@ -99,7 +110,8 @@ cdef extern from "c_frontend.h":
             uint64_t*       segmentation_data,
             const uint32_t* groundtruth_data,
             float           affThresholdLow,
-            float           affThresholdHigh);
+            float           affThresholdHigh,
+            bool            findFragments);
 
     vector[Merge] mergeUntil(
             WaterzState& state,

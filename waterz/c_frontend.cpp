@@ -15,16 +15,17 @@ int WaterzContext::_nextId = 0;
 
 WaterzState
 initialize(
-		size_t          width,
-		size_t          height,
-		size_t          depth,
+		std::size_t     width,
+		std::size_t     height,
+		std::size_t     depth,
 		const AffValue* affinity_data,
 		SegID*          segmentation_data,
 		const GtID*     ground_truth_data,
 		AffValue        affThresholdLow,
-		AffValue        affThresholdHigh) {
+		AffValue        affThresholdHigh,
+		bool            findFragments) {
 
-	size_t num_voxels = width*height*depth;
+	std::size_t num_voxels = width*height*depth;
 
 	// wrap affinities (no copy)
 	affinity_graph_ref<AffValue> affinities(
@@ -40,13 +41,25 @@ initialize(
 			)
 	);
 
-	std::cout << "performing initial watershed segmentation..." << std::endl;
+	counts_t<std::size_t> sizes;
 
-	counts_t<size_t> counts;
-	watershed(affinities, affThresholdLow, affThresholdHigh, *segmentation, counts);
+	if (findFragments) {
 
-	std::size_t numNodes = counts.size();
+		std::cout << "performing initial watershed segmentation..." << std::endl;
 
+		watershed(affinities, affThresholdLow, affThresholdHigh, *segmentation, sizes);
+
+	} else {
+
+		std::cout << "counting regions and sizes..." << std::endl;
+
+		std::size_t maxId = *std::max_element(segmentation_data, segmentation_data + num_voxels);
+		sizes.resize(maxId + 1);
+		for (std::size_t i = 0; i < num_voxels; i++)
+			sizes[segmentation_data[i]]++;
+	}
+
+	std::size_t numNodes = sizes.size();
 	std::cout << "creating region graph for " << numNodes << " nodes" << std::endl;
 
 	std::shared_ptr<RegionGraphType> regionGraph(
@@ -61,9 +74,9 @@ initialize(
 
 	std::cout << "creating region size map" << std::endl;
 
-	// create region size node map, desctruct counts
-	std::shared_ptr<RegionGraphType::NodeMap<size_t>> regionSizes(
-			new RegionGraphType::NodeMap<size_t>(*regionGraph, std::move(counts))
+	// create region size node map, desctruct sizes
+	std::shared_ptr<RegionGraphType::NodeMap<std::size_t>> regionSizes(
+			new RegionGraphType::NodeMap<std::size_t>(*regionGraph, std::move(sizes))
 	);
 
 	std::cout << "extracting region graph..." << std::endl;
