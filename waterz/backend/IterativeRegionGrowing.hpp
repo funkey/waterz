@@ -1,6 +1,8 @@
 #ifndef WATERZ_ITERATIVE_REGION_GROWING_H__
 #define WATERZ_ITERATIVE_REGION_GROWING_H__
 
+#include "BinQueue.hpp"
+
 template <typename NodeIdType, typename ScoreType>
 class IterativeRegionGrowing {
 
@@ -16,38 +18,24 @@ public:
 		_affinityGraph(affinityGraph),
 		_fragments(seeds) {
 
-		initialize(seeds);
+		initialize();
 	}
 
 	void grow() {
 
-		while (!queuesEmpty()) {
+		while (!_boundaryQueue.empty()) {
 
-			for (size_t i = 0; i < _boundaryQueues.size(); i++) {
+			BoundaryVoxel next = _boundaryQueue.top();
+			_boundaryQueue.pop();
 
-				if (_boundaryQueues[i].empty())
-					continue;
+			// only if still unassigned
+			if (_fragments[next.z][next.y][next.x] != 0)
+				continue;
 
-				//std::cout << "growing region " << i+1 << std::endl;
+			// assign voxel to region
+			_fragments[next.z][next.y][next.x] = next.region;
 
-				BoundaryVoxel next = _boundaryQueues[i].top();
-				_boundaryQueues[i].pop();
-
-				//std::cout << "considering (" << next.z << "," << next.y << "," << next.x << ")" << std::endl;
-
-				// only if still unassigned
-				if (_fragments[next.z][next.y][next.x] != 0)
-					continue;
-
-				//std::cout << "adding (" << next.z << "," << next.y << "," << next.x << ")" << std::endl;
-
-				// assign to seed with index i: id = i + 1
-				_fragments[next.z][next.y][next.x] = i + 1;
-
-				//std::cout << "assigned to label " << i+1 << std::endl;
-
-				addBoundaryVoxels(next.z, next.y, next.x);
-			}
+			addBoundaryVoxels(next.z, next.y, next.x);
 		}
 	}
 
@@ -56,15 +44,10 @@ private:
 	struct BoundaryVoxel {
 
 		size_t z, y, x;
-		ScoreType score;
-
-		bool operator<(const BoundaryVoxel& other) const {
-
-			return score < other.score;
-		}
+		NodeIdType region;
 	};
 
-	typedef std::priority_queue<BoundaryVoxel> QueueType;
+	typedef BinQueue<BoundaryVoxel, 256> QueueType;
 
 	enum Direction {
 
@@ -78,41 +61,16 @@ private:
 		NumDirections
 	};
 
-	void initialize(volume_ref<NodeIdType>& seeds) {
+	void initialize() {
 
-		_depth  = seeds.shape()[0];
-		_height = seeds.shape()[1];
-		_width  = seeds.shape()[2];
-
-		std::cout << "size of seeds volume: " << _depth << ", " << _height << ", " << _width << std::endl;
-		std::cout << "size of affinity graph: "
-				<< _affinityGraph.shape()[0] << ", "
-				<< _affinityGraph.shape()[1] << ", "
-				<< _affinityGraph.shape()[2] << ", "
-				<< _affinityGraph.shape()[3] << std::endl;
-
-		size_t numSeeds = 0;
-		for (size_t z = 0; z < _depth; z++)
-			for (size_t y = 0; y < _height; y++)
-				for (size_t x = 0; x < _width; x++)
-					numSeeds = std::max(seeds[z][y][x], numSeeds);
-
-		std::cout << "found " << numSeeds << " seeds" << std::endl;
-
-		_boundaryQueues.resize(numSeeds);
+		_depth  = _fragments.shape()[0];
+		_height = _fragments.shape()[1];
+		_width  = _fragments.shape()[2];
 
 		for (size_t z = 0; z < _depth; z++)
 			for (size_t y = 0; y < _height; y++)
 				for (size_t x = 0; x < _width; x++)
 					addBoundaryVoxels(z, y, x);
-	}
-
-	bool queuesEmpty() {
-
-		for (auto q : _boundaryQueues)
-			if (!q.empty())
-				return false;
-		return true;
 	}
 
 	void addBoundaryVoxels(size_t z, size_t y, size_t x) {
@@ -147,22 +105,11 @@ private:
 			if (nz >= _depth || ny >= _height || nx >= _width)
 				continue;
 
-			NodeIdType id = _fragments[nz][ny][nx];
+			NodeIdType neighborId = _fragments[nz][ny][nx];
 
 			// only if neighbor is unassigned
-			if (id != 0)
+			if (neighborId != 0)
 				continue;
-
-			//std::cout << "adding boundary voxel" << std::endl;
-			//std::cout << "(z,y,x) == (" << z << "," << y << "," << x << std::endl;
-			//std::cout << "(nz,ny,nx) == (" << nz << "," << ny << "," << nx << std::endl;
-			//std::cout << "d == " << d << std::endl;
-
-			//std::cout << "affinity edge at "
-					//<< (d/2) << " "
-					//<< (z-(dir==NegZ)) << " "
-					//<< (y-(dir==NegY)) << " "
-					//<< (x-(dir==NegX)) << std::endl;
 
 			/**
 			 * How to get from (x,y,z) and offset to correct affinity 
@@ -187,11 +134,8 @@ private:
 					[y-(dir==NegY)]
 					[x-(dir==NegX)];
 
-			//std::cout << "affinity = " << affinity << std::endl;
-			//std::cout << "new boundary voxel at (" << nz << "," << ny << "," << nx << ")" << std::endl;
-
-			BoundaryVoxel boundaryVoxel= {nz, ny, nx, affinity};
-			_boundaryQueues[id].push(boundaryVoxel);
+			BoundaryVoxel boundaryVoxel= {nz, ny, nx, id};
+			_boundaryQueue.push(boundaryVoxel, (int)((1.0-affinity)*255));
 		}
 	}
 
@@ -202,7 +146,7 @@ private:
 	size_t _height;
 	size_t _width;
 
-	std::vector<QueueType> _boundaryQueues;
+	QueueType _boundaryQueue;
 };
 
 #endif // WATERZ_ITERATIVE_REGION_GROWING_H__
