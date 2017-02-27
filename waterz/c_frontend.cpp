@@ -6,6 +6,7 @@
 
 #include "c_frontend.h"
 #include "evaluate.hpp"
+#include "backend/IterativeRegionGrowing.hpp"
 #include "backend/MergeFunctions.hpp"
 #include "backend/basic_watershed.hpp"
 #include "backend/region_graph.hpp"
@@ -50,6 +51,17 @@ initialize(
 		watershed(affinities, affThresholdLow, affThresholdHigh, *segmentation, sizes);
 
 	} else {
+
+		// DEBUG, make argument
+		bool growFragments = true;
+
+		if (growFragments) {
+
+			std::cout << "growing seeds into intial fragments..." << std::endl;
+
+			IterativeRegionGrowing<SegID, AffValue> regionGrowing(affinities, *segmentation);
+			regionGrowing.grow();
+		}
 
 		std::cout << "counting regions and sizes..." << std::endl;
 
