@@ -16,7 +16,8 @@ public:
 			const affinity_graph_ref<ScoreType>& affinityGraph,
 			volume_ref<NodeIdType>&              seeds) :
 		_affinityGraph(affinityGraph),
-		_fragments(seeds) {
+		_fragments(seeds),
+		_direction(0) {
 
 		initialize();
 	}
@@ -80,7 +81,11 @@ private:
 		if (id == 0)
 			return;
 
-		for (int d = 0; d < NumDirections; d++) {
+		_direction++;
+
+		for (int i = 0; i < NumDirections; i++) {
+
+			int d = (i+_direction)%NumDirections;
 
 			Direction dir = (Direction)d;
 
@@ -147,6 +152,8 @@ private:
 	size_t _width;
 
 	QueueType _boundaryQueue;
+
+	int _direction;
 };
 
 #endif // WATERZ_ITERATIVE_REGION_GROWING_H__
