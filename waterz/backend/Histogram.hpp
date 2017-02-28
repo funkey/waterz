@@ -29,6 +29,13 @@ public:
 
 	T sum() const { return _sum; }
 
+	void clear() {
+
+		_sum = 0;
+		for (int i = 0; i < Bins; i++)
+			_bins[i] = 0;
+	}
+
 private:
 
 	T _bins[Bins];

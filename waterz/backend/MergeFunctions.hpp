@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <random>
 #include "Operators.hpp"
-#include "Histogram.hpp"
+#include "VectorQuantileProvider.hpp"
 
 /**
  * Scores edges with min size of incident regions.
@@ -136,7 +136,7 @@ private:
  *
  * Affinities are assumed to be in [0,1].
  */
-template <typename AffinityMapType, int Quantile, int Bins = 256>
+template <typename AffinityMapType, int Quantile, template <int Q, typename P> typename QuantileProvider = VectorQuantileProvider>
 class QuantileAffinity {
 
 public:
@@ -145,16 +145,14 @@ public:
 	typedef typename AffinityMapType::ValueType       ScoreType;
 	typedef typename RegionGraphType::NodeIdType      NodeIdType;
 	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
-	typedef Histogram<Bins>                           HistogramType;
 
 	template <typename SizeMapType>
 	QuantileAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_affinities(affinities),
-		_histograms(affinities.getRegionGraph()) {
+		_quantileProviders(affinities.getRegionGraph()) {
 
-		std::cout << "Initializing affinity histograms..." << std::endl;
+		std::cout << "Initializing affinity quantile providers..." << std::endl;
 		for (EdgeIdType e = 0; e < affinities.getRegionGraph().numEdges(); e++)
-			_histograms[e].inc((int)(_affinities[e]*(Bins-1)));
+			_quantileProviders[e].add(affinities[e]);
 	}
 
 	/**
@@ -163,37 +161,21 @@ public:
 	 */
 	ScoreType operator()(EdgeIdType e) {
 
-		const HistogramType& histogram = _histograms[e];
-
-		// pivot element, 1-based index
-		int pivot = Quantile*histogram.sum()/100 + 1;
-
-		int sum = 0;
-		int bin = 0;
-		for (bin = 0; bin < Bins; bin++) {
-
-			sum += histogram[bin];
-
-			if (sum >= pivot)
-				break;
-		}
-
-		return (float)bin/(Bins-1);
+		return _quantileProviders[e].value();
 	}
 
 	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
 
 	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		_histograms[to] += _histograms[from];
+		_quantileProviders[to].merge(_quantileProviders[from]);
+		_quantileProviders[from].clear();
 	}
 
 private:
 
-	const AffinityMapType& _affinities;
-
-	// a histogram of affinities for each edge
-	typename RegionGraphType::template EdgeMap<HistogramType> _histograms;
+	// a quantile provider for each edge
+	typename RegionGraphType::template EdgeMap<QuantileProvider<Quantile, ScoreType>> _quantileProviders;
 };
 
 /**

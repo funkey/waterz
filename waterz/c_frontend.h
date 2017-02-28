@@ -7,6 +7,8 @@
 #include "backend/MergeFunctions.hpp"
 #include "backend/Operators.hpp"
 #include "backend/types.hpp"
+#include "backend/HistogramQuantileProvider.hpp"
+#include "backend/VectorQuantileProvider.hpp"
 #include "evaluate.hpp"
 
 typedef uint64_t                                                 SegID;
