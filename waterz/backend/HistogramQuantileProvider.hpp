@@ -14,7 +14,8 @@ public:
 
 	void add(Precision value) {
 
-		_histogram.inc((int)(value*(Bins-1)));
+		int bin = discretize<int>(value, Bins);
+		_histogram.inc(bin);
 	}
 
 	Precision value() {
@@ -32,7 +33,7 @@ public:
 				break;
 		}
 
-		return (Precision)bin/(Bins-1);
+		return undiscretize<Precision>(bin, Bins);
 	}
 
 	template <int OtherQ, typename OtherPrecision>
