@@ -9,6 +9,8 @@
 #include "backend/types.hpp"
 #include "backend/BinQueue.hpp"
 #include "backend/PriorityQueue.hpp"
+#include "backend/HistogramQuantileProvider.hpp"
+#include "backend/VectorQuantileProvider.hpp"
 #include "evaluate.hpp"
 
 typedef uint64_t                                                 SegID;

@@ -164,6 +164,8 @@ public:
 
 	ID numNodes() const { return _numNodes; }
 
+	std::size_t numEdges() const { return _edges.size(); }
+
 	ID addNode() {
 
 		NodeIdType id = _numNodes;
