@@ -7,6 +7,8 @@
 #include "backend/MergeFunctions.hpp"
 #include "backend/Operators.hpp"
 #include "backend/types.hpp"
+#include "backend/BinQueue.hpp"
+#include "backend/PriorityQueue.hpp"
 #include "evaluate.hpp"
 
 typedef uint64_t                                                 SegID;
@@ -16,10 +18,12 @@ typedef float                                                    ScoreValue;
 typedef RegionGraph<SegID>                                       RegionGraphType;
 typedef typename RegionGraphType::template EdgeMap<AffValue>     AffinitiesType;
 typedef typename RegionGraphType::template NodeMap<std::size_t>  SizesType;
-typedef IterativeRegionMerging<SegID, ScoreValue>                RegionMergingType;
 
+// to be created by __init__.py
 #include <ScoringFunction.h>
+#include <Queue.h>
 
+typedef IterativeRegionMerging<SegID, ScoreValue, QueueType>     RegionMergingType;
 
 struct Metrics {
 

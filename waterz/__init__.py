@@ -7,6 +7,7 @@ def agglomerate(
         aff_threshold_high = 0.9999,
         return_merge_history = False,
         scoring_function = 'Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>>',
+        discretize_queue = 0,
         force_rebuild = False):
     '''
     Compute segmentations from an affinity graph for several thresholds.
@@ -58,6 +59,11 @@ def agglomerate(
                 https://github.com/funkey/waterz/blob/master/waterz/backend/Operators.hpp
 
             for operators to combine them.
+
+        discretize_queue: int
+
+            If set to non-zero, a bin queue with that many bins will be used to 
+            approximate the priority queue for merge operations.
 
         force_rebuild:
 
@@ -140,7 +146,7 @@ def agglomerate(
     source_files.sort()
     source_files_hashes = [ hashlib.md5(open(f, 'r').read().encode('utf-8')).hexdigest() for f in source_files ]
 
-    key = scoring_function, source_files_hashes, sys.version_info, sys.executable, Cython.__version__
+    key = scoring_function, discretize_queue, source_files_hashes, sys.version_info, sys.executable, Cython.__version__
     module_name = 'waterz_' + hashlib.md5(str(key).encode('utf-8')).hexdigest()
     lib_dir=os.path.expanduser('~/.cython/inline')
 
@@ -173,21 +179,28 @@ def agglomerate(
             cython_include_dirs = ['.']
             ctx = Context(cython_include_dirs, default_options)
 
-            scoring_function_include_dir = os.path.join(lib_dir, module_name)
-            if not os.path.exists(scoring_function_include_dir):
-                os.makedirs(scoring_function_include_dir)
+            include_dir = os.path.join(lib_dir, module_name)
+            if not os.path.exists(include_dir):
+                os.makedirs(include_dir)
 
             include_dirs = [
                 source_dir,
-                scoring_function_include_dir,
+                include_dir,
                 os.path.join(source_dir, 'backend'),
                 os.path.dirname(get_python_inc()),
                 numpy.get_include(),
             ]
 
-            scoring_function_header = os.path.join(scoring_function_include_dir, 'ScoringFunction.h')
+            scoring_function_header = os.path.join(include_dir, 'ScoringFunction.h')
             with open(scoring_function_header, 'w') as f:
                 f.write('typedef %s ScoringFunctionType;'%scoring_function)
+
+            queue_header = os.path.join(include_dir, 'Queue.h')
+            with open(queue_header, 'w') as f:
+                if discretize_queue == 0:
+                    f.write('template<typename T, typename S> using QueueType = PriorityQueue<T, S>;')
+                else:
+                    f.write('template<typename T, typename S> using QueueType = BinQueue<T, S, %d>;'%discretize_queue)
 
             # cython requires that the pyx file has the same name as the module
             shutil.copy(
