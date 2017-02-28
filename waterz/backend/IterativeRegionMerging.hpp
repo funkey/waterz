@@ -9,8 +9,9 @@
 #include <limits>
 
 #include "RegionGraph.hpp"
+#include "PriorityQueue.hpp"
 
-template <typename NodeIdType, typename ScoreType>
+template <typename NodeIdType, typename ScoreType, template <typename T, typename S> typename QueueType = PriorityQueue>
 class IterativeRegionMerging {
 
 public:
@@ -27,7 +28,6 @@ public:
 		_edgeScores(initialRegionGraph),
 		_deleted(initialRegionGraph),
 		_stale(initialRegionGraph),
-		_edgeQueue(EdgeCompare(_edgeScores)),
 		_mergedUntil(std::numeric_limits<ScoreType>::lowest()) {}
 
 	/**
@@ -56,12 +56,12 @@ public:
 
 		std::cout << "merging until " << threshold << std::endl;
 
-		if (_edgeQueue.size() > 0)
+		if (!_edgeQueue.empty())
 			std::cout << "min edge score " << _edgeScores[_edgeQueue.top()] << std::endl;
 
 		// while there are still unhandled edges
 		std::size_t merged = 0;
-		while (_edgeQueue.size() > 0) {
+		while (!_edgeQueue.empty()) {
 
 			// get the next cheapest edge to merge
 			EdgeIdType next = _edgeQueue.top();
@@ -124,29 +124,6 @@ public:
 	}
 
 private:
-
-	/**
-	 * Compare two edges based on their score. To be used in the priority queue.
-	 */
-	class EdgeCompare {
-
-	public:
-
-		EdgeCompare(const typename RegionGraphType::template EdgeMap<ScoreType>& edgeScores) :
-			_edgeScores(edgeScores) {}
-
-		bool operator()(EdgeIdType a, EdgeIdType b) {
-
-			if (_edgeScores[a] == _edgeScores[b])
-				return a > b;
-
-			return _edgeScores[a] > _edgeScores[b];
-		}
-
-	private:
-
-		const typename RegionGraphType::template EdgeMap<ScoreType>& _edgeScores;
-	};
 
 	/**
 	 * Merge regions a and b.
@@ -243,7 +220,7 @@ private:
 		ScoreType score = edgeScoringFunction(e);
 
 		_edgeScores[e] = score;
-		_edgeQueue.push(e);
+		_edgeQueue.push(e, score);
 
 		return score;
 	}
@@ -290,7 +267,7 @@ private:
 	typename RegionGraphType::template EdgeMap<bool> _deleted;
 
 	// sorted list of edges indices, cheapest edge first
-	std::priority_queue<EdgeIdType, std::vector<EdgeIdType>, EdgeCompare> _edgeQueue;
+	QueueType<EdgeIdType, ScoreType> _edgeQueue;
 
 	// paths from nodes to the roots of the merge-tree they are part of
 	//
