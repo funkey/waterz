@@ -1,7 +1,26 @@
 #ifndef WATERZ_BIN_QUEUE_H__
 #define WATERZ_BIN_QUEUE_H__
 
+#include <exception>
 #include <queue>
+
+class BinQueueOutOfBoundsException : public std::exception {
+
+	public:
+
+		BinQueueOutOfBoundsException(int i, int n) : _i(i), _n(n) {}
+
+		const char* what() {
+
+			std::stringstream ss;
+			ss << "Invalid bin " << _i << ", not in range [0," << _n << ")";
+			return ss.str().c_str();
+		}
+
+	private:
+
+		int _i, _n;
+};
 
 /**
  * A priority queue sorting elements from smallest to largest given a discrete 
@@ -16,6 +35,9 @@ public:
 		_minBin(-1) {}
 
 	void push(const T& element, int score) {
+
+		if (score < 0 || score >= N)
+			throw BinQueueOutOfBoundsException(score, N);
 
 		_bins[score].push(element);
 		if (_minBin == -1)
