@@ -188,6 +188,8 @@ private:
 					// already
 
 					edgeScoringFunction.notifyEdgeMerge(neighborEdge, aNeighborEdge);
+
+					_regionGraph.removeEdge(neighborEdge);
 					_deleted[neighborEdge] = true;
 
 				} else {
