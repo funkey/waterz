@@ -43,7 +43,18 @@ private:
 	template <typename It>
 	inline It getQuantileIterator(It begin, It end, int q) {
 
-		return begin + (end-begin-1)*q/100;
+		size_t size = end - begin;
+		if (size == 0) {
+
+			std::cerr << "quantile provider is empty" << std::endl;
+			throw std::exception();
+		}
+
+		int pivot = q*size/100;
+		if (pivot == size)
+			pivot--;
+
+		return begin + pivot;
 	}
 
 	std::vector<Precision> _values;
