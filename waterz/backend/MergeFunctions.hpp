@@ -5,6 +5,7 @@
 #include <random>
 #include "Operators.hpp"
 #include "VectorQuantileProvider.hpp"
+#include "MaxKValues.hpp"
 
 /**
  * Scores edges with min size of incident regions.
@@ -214,6 +215,50 @@ public:
 private:
 
 	AffinityMapType& _affinities;
+};
+
+/**
+ * Scores edges with the mean of the max k affinities.
+ */
+template <typename AffinityMapType, int K>
+class MaxKAffinity {
+
+public:
+
+	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
+	typedef typename AffinityMapType::ValueType       ScoreType;
+	typedef typename RegionGraphType::NodeIdType      NodeIdType;
+	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+
+	template <typename SizeMapType>
+	MaxKAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
+		_maxKValues(affinities.getRegionGraph()) {
+
+		std::cout << "Initializing max k vectors..." << std::endl;
+		for (EdgeIdType e = 0; e < affinities.getRegionGraph().numEdges(); e++)
+			_maxKValues[e].push(affinities[e]);
+	}
+
+	/**
+	 * Get the score for an edge. An edge will be merged the earlier, the 
+	 * smaller its score is.
+	 */
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return _maxKValues[e].average();
+	}
+
+	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
+
+	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+
+		_maxKValues[to].merge(_maxKValues[from]);
+	}
+
+private:
+
+	// a quantile provider for each edge
+	typename RegionGraphType::template EdgeMap<MaxKValues<ScoreType,K>> _maxKValues;
 };
 
 /**
