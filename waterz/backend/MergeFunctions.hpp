@@ -137,7 +137,7 @@ private:
  *
  * Affinities are assumed to be in [0,1].
  */
-template <typename AffinityMapType, int Quantile, template <int Q, typename P> typename QuantileProvider = VectorQuantileProvider>
+template <typename AffinityMapType, int Quantile, template <int Q, typename P> class QuantileProvider = VectorQuantileProvider>
 class QuantileAffinity {
 
 public:

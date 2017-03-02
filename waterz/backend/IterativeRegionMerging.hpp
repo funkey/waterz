@@ -11,7 +11,7 @@
 #include "RegionGraph.hpp"
 #include "PriorityQueue.hpp"
 
-template <typename NodeIdType, typename ScoreType, template <typename T, typename S> typename QueueType = PriorityQueue>
+template <typename NodeIdType, typename ScoreType, template <typename T, typename S> class QueueType = PriorityQueue>
 class IterativeRegionMerging {
 
 public:
