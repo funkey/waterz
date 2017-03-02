@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='waterz',
-        version='0.5',
+        version='0.6',
         description='Simple watershed and agglomeration for affinity graphs.',
         url='https://github.com/funkey/waterz',
         author='Jan Funke',
