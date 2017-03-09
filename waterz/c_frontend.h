@@ -132,6 +132,35 @@ private:
 	std::vector<Merge>& _history;
 };
 
+class DebugVisitor : public RegionMergingVisitor {
+
+public:
+
+	void onPop(RegionGraphType::EdgeIdType e, ScoreValue score) {
+
+		std::cout << "poppded edge " << e << " with " << score << std::endl;
+	}
+
+	void onDeletedEdgeFound(RegionGraphType::EdgeIdType e) {
+
+		std::cout << "edge " << e << " is marked as deleted" << std::endl;
+	}
+
+	void onStaleEdgeFound(RegionGraphType::EdgeIdType e, ScoreValue oldScore, ScoreValue newScore) {
+
+		std::cout << "edge " << e << " is marked as stale: ";
+		std::cout << "new score " << newScore << " (was " << oldScore << ")" << std::endl;
+
+		if (newScore < oldScore)
+			std::cout << "!!! new score is smaller than old score !!!" << std::endl;
+	}
+
+	void onMerge(SegID a, SegID b, SegID c, ScoreValue score) {
+
+		std::cout << "merging region " << a << " + " << b << " -> " << c << std::endl;
+	}
+};
+
 WaterzState initialize(
 		size_t          width,
 		size_t          height,

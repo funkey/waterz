@@ -135,10 +135,12 @@ mergeUntil(
 	std::vector<Merge>  mergeHistory;
 	MergeHistoryVisitor mergeHistoryVisitor(mergeHistory);
 
+	DebugVisitor debugVisitor;
+
 	std::size_t merged = context->regionMerging->mergeUntil(
 			*context->scoringFunction,
 			threshold,
-			mergeHistoryVisitor);
+			debugVisitor);
 
 	if (merged) {
 
