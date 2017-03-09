@@ -103,7 +103,20 @@ private:
 	static int _nextId;
 };
 
-class MergeHistoryVisitor {
+class RegionMergingVisitor {
+
+public:
+
+	void onPop(RegionGraphType::EdgeIdType e, ScoreValue score) {}
+
+	void onDeletedEdgeFound(RegionGraphType::EdgeIdType e) {}
+
+	void onStaleEdgeFound(RegionGraphType::EdgeIdType e, ScoreValue oldScore, ScoreValue newScore) {}
+
+	void onMerge(SegID a, SegID b, SegID c, ScoreValue score) {}
+};
+
+class MergeHistoryVisitor : public RegionMergingVisitor {
 
 public:
 
