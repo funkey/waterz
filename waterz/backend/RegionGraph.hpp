@@ -178,9 +178,9 @@ public:
 		return id;
 	}
 
-	std::size_t addEdge(NodeIdType u, NodeIdType v) {
+	EdgeIdType addEdge(NodeIdType u, NodeIdType v) {
 
-		std::size_t id = _edges.size();
+		EdgeIdType id = _edges.size();
 		_edges.push_back(EdgeType(std::min(u, v), std::max(u, v)));
 
 		_incEdges[u].push_back(id);

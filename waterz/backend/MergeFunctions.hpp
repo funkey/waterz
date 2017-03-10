@@ -1,264 +1,141 @@
 #ifndef MERGE_FUNCTIONS_H__
 #define MERGE_FUNCTIONS_H__
 
-#include <algorithm>
-#include <random>
-#include "Operators.hpp"
+#include "RegionSizeProvider.hpp"
+#include "MinAffinityProvider.hpp"
+#include "MaxAffinityProvider.hpp"
+#include "HistogramQuantileProvider.hpp"
 #include "VectorQuantileProvider.hpp"
-#include "MaxKValues.hpp"
+#include "MaxKAffinityProvider.hpp"
+#include "RandomNumberProvider.hpp"
+#include "ConstantProvider.hpp"
 
 /**
  * Scores edges with min size of incident regions.
  */
-template <typename SizeMapType>
+template <typename RegionGraphType>
 class MinSize {
 
 public:
 
-	typedef typename SizeMapType::RegionGraphType RegionGraphType;
-	typedef float                                 ScoreType;
-	typedef typename RegionGraphType::NodeIdType  NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType  EdgeIdType;
+	typedef RegionSizeProvider<RegionGraphType> StatisticsProviderType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
 
-	template <typename AffinityMapType>
-	MinSize(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_regionGraph(regionSizes.getRegionGraph()),
-		_regionSizes(regionSizes) {}
+	MinSize(
+			RegionGraphType& regionGraph,
+			const StatisticsProviderType& regionSizeProvider) :
+		_regionGraph(regionGraph),
+		_regionSizeProvider(regionSizeProvider) {}
 
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
 		return std::min(
-				_regionSizes[_regionGraph.edge(e).u],
-				_regionSizes[_regionGraph.edge(e).v]);
+				_regionSizeProvider[_regionGraph.edge(e).u],
+				_regionSizeProvider[_regionGraph.edge(e).v]);
 	}
-
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
-
-		_regionSizes[to] += _regionSizes[from];
-	}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
 
 private:
 
-	const RegionGraphType& _regionGraph;
-	SizeMapType            _regionSizes;
+	const RegionGraphType&    _regionGraph;
+	const StatisticsProviderType& _regionSizeProvider;
 };
 
 /**
  * Scores edges with max size of incident regions.
  */
-template <typename SizeMapType>
+template <typename RegionGraphType>
 class MaxSize {
 
 public:
 
-	typedef typename SizeMapType::RegionGraphType RegionGraphType;
-	typedef float                                 ScoreType;
-	typedef typename RegionGraphType::NodeIdType  NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType  EdgeIdType;
+	typedef RegionSizeProvider<RegionGraphType> StatisticsProviderType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
 
-	template <typename AffinityMapType>
-	MaxSize(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_regionGraph(regionSizes.getRegionGraph()),
-		_regionSizes(regionSizes) {}
+	MaxSize(
+			RegionGraphType& regionGraph,
+			const StatisticsProviderType& regionSizeProvider) :
+		_regionGraph(regionGraph),
+		_regionSizeProvider(regionSizeProvider) {}
 
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
 		return std::max(
-				_regionSizes[_regionGraph.edge(e).u],
-				_regionSizes[_regionGraph.edge(e).v]);
+				_regionSizeProvider[_regionGraph.edge(e).u],
+				_regionSizeProvider[_regionGraph.edge(e).v]);
 	}
-
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
-
-		_regionSizes[to] += _regionSizes[from];
-	}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
 
 private:
 
 	const RegionGraphType& _regionGraph;
-	SizeMapType            _regionSizes;
+	const StatisticsProviderType& _regionSizeProvider;
 };
 
 /**
- * Scores edges with min affinity.
+ * Directly use a statistic from a provider for edges.
  */
-template <typename AffinityMapType>
-class MinAffinity {
+template <typename RegionGraphType, typename StatisticsProviderTypeType>
+class EdgeStatisticValue {
 
 public:
 
-	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
-	typedef typename AffinityMapType::ValueType       ScoreType;
-	typedef typename RegionGraphType::NodeIdType      NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+	typedef StatisticsProviderTypeType StatisticsProviderType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
 
-	template <typename SizeMapType>
-	MinAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_affinities(affinities) {}
+	EdgeStatisticValue(
+			RegionGraphType&,
+			const StatisticsProviderType& provider) :
+		_provider(provider) {}
 
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return _affinities[e];
-	}
-
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-
-		_affinities[to] = std::min(_affinities[to], _affinities[from]);
+		return _provider[e];
 	}
 
 private:
 
-	AffinityMapType& _affinities;
+	const StatisticsProviderType& _provider;
 };
 
-/**
- * Scores edges with a quantile affinity. The quantile is approximated by 
- * keeping track of a histogram of affinity values. This approximation is exact 
- * if the number of bins corresponds to the discretization of the affinities. 
- * The default is to use 256 bins.
- *
- * Affinities are assumed to be in [0,1].
- */
-template <typename AffinityMapType, int Quantile, template <int Q, typename P> class QuantileProvider = VectorQuantileProvider>
-class QuantileAffinity {
+template <typename RegionGraphType, typename Precision>
+using MinAffinity = EdgeStatisticValue<RegionGraphType, MinAffinityProvider<RegionGraphType, Precision>>;
 
-public:
+template <typename RegionGraphType, typename Precision>
+using MaxAffinity = EdgeStatisticValue<RegionGraphType, MaxAffinityProvider<RegionGraphType, Precision>>;
 
-	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
-	typedef typename AffinityMapType::ValueType       ScoreType;
-	typedef typename RegionGraphType::NodeIdType      NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+template <typename RegionGraphType, int Quantile, typename Precision, int Bins>
+using HistogramQuantileAffinity = EdgeStatisticValue<RegionGraphType, HistogramQuantileProvider<RegionGraphType, Quantile, Precision, Bins>>;
 
-	template <typename SizeMapType>
-	QuantileAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_quantileProviders(affinities.getRegionGraph()) {
-
-		std::cout << "Initializing affinity quantile providers..." << std::endl;
-		for (EdgeIdType e = 0; e < affinities.getRegionGraph().numEdges(); e++)
-			_quantileProviders[e].add(affinities[e]);
-	}
-
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
-	ScoreType operator()(EdgeIdType e) {
-
-		return _quantileProviders[e].value();
-	}
-
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
-
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-
-		_quantileProviders[to].merge(_quantileProviders[from]);
-		_quantileProviders[from].clear();
-	}
-
-private:
-
-	// a quantile provider for each edge
-	typename RegionGraphType::template EdgeMap<QuantileProvider<Quantile, ScoreType>> _quantileProviders;
-};
-
-/**
- * Scores edges with max affinity.
- */
-template <typename AffinityMapType>
-class MaxAffinity {
-
-public:
-
-	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
-	typedef typename AffinityMapType::ValueType       ScoreType;
-	typedef typename RegionGraphType::NodeIdType      NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
-
-	template <typename SizeMapType>
-	MaxAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_affinities(affinities) {}
-
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
-	inline ScoreType operator()(EdgeIdType e) {
-
-		return _affinities[e];
-	}
-
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-
-		_affinities[to] = std::max(_affinities[to], _affinities[from]);
-	}
-
-private:
-
-	AffinityMapType& _affinities;
-};
+template <typename RegionGraphType, int Quantile, typename Precision>
+using QuantileAffinity = EdgeStatisticValue<RegionGraphType, VectorQuantileProvider<RegionGraphType, Quantile, Precision>>;
 
 /**
  * Scores edges with the mean of the max k affinities.
  */
-template <typename AffinityMapType, int K>
-class MaxKAffinity {
+template <typename RegionGraphType, int K, typename Precision>
+class MeanMaxKAffinity {
 
 public:
 
-	typedef typename AffinityMapType::RegionGraphType RegionGraphType;
-	typedef typename AffinityMapType::ValueType       ScoreType;
-	typedef typename RegionGraphType::NodeIdType      NodeIdType;
-	typedef typename RegionGraphType::EdgeIdType      EdgeIdType;
+	typedef MaxKAffinityProvider<RegionGraphType, K, Precision> StatisticsProviderType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef Precision ScoreType;
 
-	template <typename SizeMapType>
-	MaxKAffinity(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		_maxKValues(affinities.getRegionGraph()) {
+	MeanMaxKAffinity(
+			RegionGraphType&,
+			const StatisticsProviderType& maxKAffinityProvider) :
+		_maxKAffinityProvider(maxKAffinityProvider) {}
 
-		std::cout << "Initializing max k vectors..." << std::endl;
-		for (EdgeIdType e = 0; e < affinities.getRegionGraph().numEdges(); e++)
-			_maxKValues[e].push(affinities[e]);
-	}
-
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return _maxKValues[e].average();
-	}
-
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-
-		_maxKValues[to].merge(_maxKValues[from]);
+		return _maxKAffinityProvider[e].average();
 	}
 
 private:
 
-	// a quantile provider for each edge
-	typename RegionGraphType::template EdgeMap<MaxKValues<ScoreType,K>> _maxKValues;
+	const StatisticsProviderType& _maxKAffinityProvider;
 };
 
 /**
@@ -269,54 +146,50 @@ class Random {
 
 public:
 
-	typedef float                                ScoreType;
-	typedef typename RegionGraphType::NodeIdType NodeIdType;
+	typedef RandomNumberProvider StatisticsProviderType;
 	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
 
-	template <typename AffinityMapType, typename SizeMapType>
-	Random(AffinityMapType&, SizeMapType&) {}
+	Random(
+			RegionGraphType&,
+			const StatisticsProviderType& randomProvider) :
+		_randomProvider(randomProvider) {}
 
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return ScoreType(rand())/RAND_MAX;
+		return _randomProvider();
 	}
 
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
+private:
 
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
+	const StatisticsProviderType& _randomProvider;
 };
 
 /**
  * Scores edges with a constant.
  */
 template <typename RegionGraphType, int C>
-class Const {
+class Constant {
 
 public:
 
-	typedef float                                ScoreType;
-	typedef typename RegionGraphType::NodeIdType NodeIdType;
+	typedef ConstantProvider<C> StatisticsProviderType;
 	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
 
-	template <typename AffinityMapType, typename SizeMapType>
-	Const(AffinityMapType&, SizeMapType&) {}
+	Constant(
+			RegionGraphType&,
+			const StatisticsProviderType& constantProvider) :
+		_constantProvider(constantProvider) {}
 
-	/**
-	 * Get the score for an edge. An edge will be merged the earlier, the 
-	 * smaller its score is.
-	 */
 	inline ScoreType operator()(EdgeIdType e) {
 
-		return C;
+		return _constantProvider();
 	}
 
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {}
+private:
 
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {}
+	const StatisticsProviderType& _constantProvider;
 };
 
 #endif // MERGE_FUNCTIONS_H__

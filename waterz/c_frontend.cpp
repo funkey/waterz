@@ -66,17 +66,9 @@ initialize(
 			new RegionGraphType(numNodes)
 	);
 
-	std::cout << "creating edge affinity map" << std::endl;
-
-	std::shared_ptr<RegionGraphType::EdgeMap<float>> edgeAffinities(
-			new RegionGraphType::EdgeMap<float>(*regionGraph)
-	);
-
-	std::cout << "creating region size map" << std::endl;
-
-	// create region size node map, desctruct sizes
-	std::shared_ptr<RegionGraphType::NodeMap<std::size_t>> regionSizes(
-			new RegionGraphType::NodeMap<std::size_t>(*regionGraph, std::move(sizes))
+	std::cout << "creating statistics provider" << std::endl;
+	std::shared_ptr<StatisticsProviderType> statisticsProvider(
+			new StatisticsProviderType(*regionGraph)
 	);
 
 	std::cout << "extracting region graph..." << std::endl;
@@ -85,11 +77,11 @@ initialize(
 			affinities,
 			*segmentation,
 			numNodes - 1,
-			*regionGraph,
-			*edgeAffinities);
+			*statisticsProvider,
+			*regionGraph);
 
 	std::shared_ptr<ScoringFunctionType> scoringFunction(
-			new ScoringFunctionType(*edgeAffinities, *regionSizes)
+			new ScoringFunctionType(*regionGraph, *statisticsProvider)
 	);
 
 	std::shared_ptr<RegionMergingType> regionMerging(
@@ -97,12 +89,11 @@ initialize(
 	);
 
 	WaterzContext* context = WaterzContext::createNew();
-	context->regionGraph     = regionGraph;
-	context->edgeAffinities  = edgeAffinities;
-	context->regionSizes     = regionSizes;
-	context->regionMerging   = regionMerging;
-	context->scoringFunction = scoringFunction;
-	context->segmentation    = segmentation;
+	context->regionGraph        = regionGraph;
+	context->regionMerging      = regionMerging;
+	context->scoringFunction    = scoringFunction;
+	context->statisticsProvider = statisticsProvider;
+	context->segmentation       = segmentation;
 
 	WaterzState initial_state;
 	initial_state.context = context->id;
@@ -137,6 +128,7 @@ mergeUntil(
 
 	std::size_t merged = context->regionMerging->mergeUntil(
 			*context->scoringFunction,
+			*context->statisticsProvider,
 			threshold,
 			mergeHistoryVisitor);
 

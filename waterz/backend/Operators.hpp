@@ -4,36 +4,31 @@
 #include <functional>
 #include <limits>
 #include <cmath>
+#include "MergeProviders.hpp"
 
 template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
 class BinaryOperator : public ScoreFunction1, public ScoreFunction2 {
 
 public:
 
+	typedef typename MergeProviders<
+			typename ScoreFunction1::StatisticsProviderType,
+			typename ScoreFunction2::StatisticsProviderType>::Value
+		StatisticsProviderType;
+
 	typedef typename ScoreFunction1::ScoreType  ScoreType;
-	typedef typename ScoreFunction1::NodeIdType NodeIdType;
-	typedef typename ScoreFunction1::EdgeIdType EdgeIdType;
 
-	template <typename AffinityMapType, typename SizeMapType>
-	BinaryOperator(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		ScoreFunction1(affinities, regionSizes),
-		ScoreFunction2(affinities, regionSizes) {}
+	template <typename RegionGraphType>
+	BinaryOperator(
+			RegionGraphType& regionGraph,
+			const StatisticsProviderType& statisticsProvider) :
+		ScoreFunction1(regionGraph, statisticsProvider),
+		ScoreFunction2(regionGraph, statisticsProvider) {}
 
+	template <typename EdgeIdType>
 	inline ScoreType operator()(EdgeIdType e) {
 
 		return _op(ScoreFunction1::operator()(e), ScoreFunction2::operator()(e));
-	}
-
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {
-
-		ScoreFunction1::notifyNodeMerge(from, to);
-		ScoreFunction2::notifyNodeMerge(from, to);
-	}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-	
-		ScoreFunction1::notifyEdgeMerge(from, to);
-		ScoreFunction2::notifyEdgeMerge(from, to);
 	}
 
 private:
@@ -46,27 +41,19 @@ class UnaryOperator : public ScoreFunction {
 
 public:
 
+	typedef typename ScoreFunction::StatisticsProviderType StatisticsProviderType;
 	typedef typename ScoreFunction::ScoreType  ScoreType;
-	typedef typename ScoreFunction::NodeIdType NodeIdType;
-	typedef typename ScoreFunction::EdgeIdType EdgeIdType;
 
-	template <typename AffinityMapType, typename SizeMapType>
-	UnaryOperator(AffinityMapType& affinities, SizeMapType& regionSizes) :
-		ScoreFunction(affinities, regionSizes) {}
+	template <typename RegionGraphType>
+	UnaryOperator(
+			RegionGraphType& regionGraph,
+			const StatisticsProviderType& statisticsProvider) :
+		ScoreFunction(regionGraph, statisticsProvider) {}
 
+	template <typename EdgeIdType>
 	inline ScoreType operator()(EdgeIdType e) {
 
 		return _op(ScoreFunction::operator()(e));
-	}
-
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
-
-		ScoreFunction::notifyNodeMerge(from, to);
-	}
-
-	inline void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
-	
-		ScoreFunction::notifyEdgeMerge(from, to);
 	}
 
 private:

@@ -33,9 +33,10 @@ public:
 	/**
 	 * Merge a RAG with the given edge scoring function until the given threshold.
 	 */
-	template <typename EdgeScoringFunction, typename Visitor>
+	template <typename EdgeScoringFunction, typename StatisticsProviderType, typename Visitor>
 	std::size_t mergeUntil(
 			EdgeScoringFunction& edgeScoringFunction,
+			StatisticsProviderType& statisticsProvider,
 			ScoreType threshold,
 			Visitor& visitor) {
 
@@ -99,7 +100,7 @@ public:
 				continue;
 			}
 
-			NodeIdType newRegion = mergeRegions(next, edgeScoringFunction);
+			NodeIdType newRegion = mergeRegions(next, statisticsProvider);
 			merged++;
 
 			visitor.onMerge(
@@ -135,16 +136,16 @@ private:
 	/**
 	 * Merge regions a and b.
 	 */
-	template <typename EdgeScoringFunction>
+	template <typename StatisticsProviderType>
 	NodeIdType mergeRegions(
 			EdgeIdType e,
-			EdgeScoringFunction& edgeScoringFunction) {
+			StatisticsProviderType& statisticsProvider) {
 
 		NodeIdType a = _regionGraph.edge(e).u;
 		NodeIdType b = _regionGraph.edge(e).v;
 
 		// assign new node a = a + b
-		edgeScoringFunction.notifyNodeMerge(b, a);
+		statisticsProvider.notifyNodeMerge(b, a);
 
 		// set path
 		_rootPaths[b] = a;
@@ -194,7 +195,7 @@ private:
 					// We got lucky, we can reuse the edge that is attached to a 
 					// already
 
-					edgeScoringFunction.notifyEdgeMerge(neighborEdge, aNeighborEdge);
+					statisticsProvider.notifyEdgeMerge(neighborEdge, aNeighborEdge);
 
 					_regionGraph.removeEdge(neighborEdge);
 					_deleted[neighborEdge] = true;
@@ -204,7 +205,7 @@ private:
 					// Bummer. The new edge should be the one pointing from 
 					// a to neighbor.
 
-					edgeScoringFunction.notifyEdgeMerge(aNeighborEdge, neighborEdge);
+					statisticsProvider.notifyEdgeMerge(aNeighborEdge, neighborEdge);
 
 					_regionGraph.removeEdge(aNeighborEdge);
 					_regionGraph.moveEdge(neighborEdge, a, neighbor);

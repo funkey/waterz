@@ -1,47 +1,54 @@
 #ifndef WATERZ_VECTOR_QUANTILE_PROVIDER_H__
 #define WATERZ_VECTOR_QUANTILE_PROVIDER_H__
 
+#include <vector>
+#include <algorithm>
+#include "StatisticsProvider.hpp"
+
 /**
  * A quantile provider using std::vector and std::nth_element to find the exact 
  * quantile.
  */
-template <int Q, typename Precision>
-class VectorQuantileProvider {
+template <typename RegionGraphType, int Q, typename Precision>
+class VectorQuantileProvider : public StatisticsProvider {
 
 public:
 
-	void add(Precision value) {
+	typedef Precision ValueType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
 
-		_values.push_back(value);
+	VectorQuantileProvider(RegionGraphType& regionGraph) :
+		_values(regionGraph) {}
+
+	void addAffinity(EdgeIdType e, ValueType affinity) {
+
+		_values[e].push_back(affinity);
 	}
 
-	Precision value() {
+	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		auto quantile = getQuantileIterator(_values.begin(), _values.end(), Q);
-		std::nth_element(_values.begin(), quantile, _values.end());
+		_values[to].reserve(_values[to].size() + _values[from].size());
 
-		return _values[*quantile];
+		auto otherQuantile = getQuantileIterator(_values[from].begin(), _values[from].end(), Q);
+		_values[to].insert(_values[to].begin(), _values[from].begin(), otherQuantile);
+		_values[to].insert(_values[to].end(), otherQuantile, _values[from].end());
+
+		auto quantile = getQuantileIterator(_values[to].begin(), _values[to].end(), Q);
+		std::nth_element(_values[to].begin(), quantile, _values[to].end());
+
+		_values[from].clear();
 	}
 
-	template <int OtherQ, typename OtherPrecision>
-	void merge(const VectorQuantileProvider<OtherQ, OtherPrecision>& other) {
+	ValueType operator[](EdgeIdType e) const {
 
-		_values.reserve(_values.size() + other._values.size());
-
-		auto otherQuantile = getQuantileIterator(other._values.begin(), other._values.end(), OtherQ);
-		_values.insert(_values.begin(), other._values.begin(), otherQuantile);
-		_values.insert(_values.end(), otherQuantile, other._values.end());
-	}
-
-	void clear() {
-
-		_values.clear();
+		auto quantile = getQuantileIterator(_values[e].begin(), _values[e].end(), Q);
+		return *quantile;
 	}
 
 private:
 
 	template <typename It>
-	inline It getQuantileIterator(It begin, It end, int q) {
+	inline It getQuantileIterator(It begin, It end, int q) const {
 
 		size_t size = end - begin;
 		if (size == 0) {
@@ -57,7 +64,7 @@ private:
 		return begin + pivot;
 	}
 
-	std::vector<Precision> _values;
+	typename RegionGraphType::template EdgeMap<std::vector<Precision>> _values;
 };
 
 #endif // WATERZ_VECTOR_QUANTILE_PROVIDER_H__

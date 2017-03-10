@@ -13,19 +13,18 @@
 #include "backend/VectorQuantileProvider.hpp"
 #include "evaluate.hpp"
 
-typedef uint64_t                                                 SegID;
-typedef uint32_t                                                 GtID;
-typedef float                                                    AffValue;
-typedef float                                                    ScoreValue;
-typedef RegionGraph<SegID>                                       RegionGraphType;
-typedef typename RegionGraphType::template EdgeMap<AffValue>     AffinitiesType;
-typedef typename RegionGraphType::template NodeMap<std::size_t>  SizesType;
+typedef uint64_t SegID;
+typedef uint32_t GtID;
+typedef float AffValue;
+typedef float ScoreValue;
+typedef RegionGraph<SegID> RegionGraphType;
 
 // to be created by __init__.py
 #include <ScoringFunction.h>
 #include <Queue.h>
 
-typedef IterativeRegionMerging<SegID, ScoreValue, QueueType>     RegionMergingType;
+typedef typename ScoringFunctionType::StatisticsProviderType StatisticsProviderType;
+typedef IterativeRegionMerging<SegID, ScoreValue, QueueType> RegionMergingType;
 
 struct Metrics {
 
@@ -84,14 +83,12 @@ public:
 
 	int id;
 
-	std::shared_ptr<RegionGraphType>     regionGraph;
-	std::shared_ptr<AffinitiesType>      edgeAffinities;
-	std::shared_ptr<SizesType>           regionSizes;
-
-	std::shared_ptr<RegionMergingType>   regionMerging;
+	std::shared_ptr<RegionGraphType> regionGraph;
+	std::shared_ptr<RegionMergingType> regionMerging;
 	std::shared_ptr<ScoringFunctionType> scoringFunction;
-	volume_ref_ptr<SegID>                segmentation;
-	volume_const_ref_ptr<GtID>           groundtruth;
+	std::shared_ptr<StatisticsProviderType> statisticsProvider;
+	volume_ref_ptr<SegID> segmentation;
+	volume_const_ref_ptr<GtID> groundtruth;
 
 private:
 

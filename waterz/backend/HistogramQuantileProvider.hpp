@@ -1,33 +1,47 @@
 #ifndef WATERZ_HISTOGRAM_QUANTILE_PROVIDER_H__
 #define WATERZ_HISTOGRAM_QUANTILE_PROVIDER_H__
 
+#include "StatisticsProvider.hpp"
 #include "Histogram.hpp"
+#include "discretize.hpp"
 
 /**
  * A quantile provider using histograms to find an approximate quantile. This 
  * assumes that all values are in the range [0,1].
  */
-template <int Q, typename Precision, int Bins = 256>
-class HistogramQuantileProvider {
+template <typename RegionGraphType, int Q, typename Precision, int Bins = 256>
+class HistogramQuantileProvider : public StatisticsProvider {
 
 public:
 
-	void add(Precision value) {
+	typedef Precision ValueType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
 
-		int bin = discretize<int>(value, Bins);
-		_histogram.inc(bin);
+	HistogramQuantileProvider(RegionGraphType& regionGraph) :
+		_histograms(regionGraph) {}
+
+	void addAffinity(EdgeIdType e, ValueType affinity) {
+
+		int bin = discretize<int>(affinity, Bins);
+		_histograms[e].inc(bin);
 	}
 
-	Precision value() {
+	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+
+		_histograms[to] += _histograms[from];
+		_histograms[from].clear();
+	}
+
+	ValueType operator[](EdgeIdType e) const {
 
 		// pivot element, 1-based index
-		int pivot = Q*_histogram.sum()/100 + 1;
+		int pivot = Q*_histograms[e].sum()/100 + 1;
 
 		int sum = 0;
 		int bin = 0;
 		for (bin = 0; bin < Bins; bin++) {
 
-			sum += _histogram[bin];
+			sum += _histograms[e][bin];
 
 			if (sum >= pivot)
 				break;
@@ -36,27 +50,9 @@ public:
 		return undiscretize<Precision>(bin, Bins);
 	}
 
-	template <int OtherQ, typename OtherPrecision>
-	void merge(const HistogramQuantileProvider<OtherQ, OtherPrecision, Bins>& other) {
-
-		_histogram += other._histogram;
-	}
-
-	void clear() {
-
-		_histogram.clear();
-	}
-
 private:
 
-	Histogram<Bins> _histogram;
-};
-
-template <int Bins>
-struct HistogramQuantileProviderSelect {
-
-	template <int Q, typename Precision>
-	using Value = HistogramQuantileProvider<Q, Precision, Bins>;
+	typename RegionGraphType::template EdgeMap<Histogram<Bins>> _histograms;
 };
 
 #endif // WATERZ_HISTOGRAM_QUANTILE_PROVIDER_H__
