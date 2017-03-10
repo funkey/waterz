@@ -159,6 +159,11 @@ public:
 
 		std::cout << "merging region " << a << " + " << b << " -> " << c << std::endl;
 	}
+
+	void onEdgeScored(RegionGraphType::EdgeIdType e, ScoreValue score) {
+
+		std::cout << "edge " << e << "scored with " << score << std::endl;
+	}
 };
 
 WaterzState initialize(
