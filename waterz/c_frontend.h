@@ -136,6 +136,8 @@ class DebugVisitor : public RegionMergingVisitor {
 
 public:
 
+	DebugVisitor(RegionGraphType& regionGraph) : _regionGraph(regionGraph) {}
+
 	void onPop(RegionGraphType::EdgeIdType e, ScoreValue score) {
 
 		std::cout << "poppded edge " << e << " with " << score << std::endl;
@@ -162,8 +164,12 @@ public:
 
 	void onEdgeScored(RegionGraphType::EdgeIdType e, ScoreValue score) {
 
-		std::cout << "edge " << e << "scored with " << score << std::endl;
+		std::cout << _regionGraph.edge(e).u << " " << _regionGraph.edge(e).v << " = " << score << std::endl;
 	}
+
+private:
+
+	RegionGraphType& _regionGraph;
 };
 
 WaterzState initialize(
