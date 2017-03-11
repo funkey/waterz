@@ -69,7 +69,7 @@ get_region_graph( const AG& aff,
 			// p.second is F
 			auto edgeId = rg.addEdge(id1, p.first);
 			affMap[edgeId] = p.second;
-			//std::cout << p.second << " " << id1 << " " << p.first << "\n";
+			std::cout << id1 << " " << p.first << " = " << p.second << "\n";
         }
     }
 
