@@ -31,6 +31,8 @@ public:
 
 	RegionGraphType& getRegionGraph() { return _regionGraph; }
 
+	const RegionGraphType& getRegionGraph() const { return _regionGraph; }
+
 protected:
 
 	RegionGraphNodeMapBase(RegionGraphType& regionGraph) :
@@ -91,6 +93,8 @@ public:
 	typedef RegionGraph<ID> RegionGraphType;
 
 	RegionGraphType& getRegionGraph() { return _regionGraph; }
+
+	const RegionGraphType& getRegionGraph() const { return _regionGraph; }
 
 protected:
 
