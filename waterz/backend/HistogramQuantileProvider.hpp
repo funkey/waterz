@@ -22,15 +22,30 @@ public:
 
 	void addAffinity(EdgeIdType e, ValueType affinity) {
 
+		auto edge = _histograms.getRegionGraph().edge(e);
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "edge " << edge.u << " " << edge.v << " add aff " << affinity << std::endl;
+
 		int bin = discretize<int>(affinity, Bins);
+
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "    bin " << bin << std::endl;
 
 		if (InitWithMax && _histograms[e].lowestBin() != Bins) {
 
-			if (bin > _histograms[e].lowestBin())
+			if (bin > _histograms[e].lowestBin()) {
+
+				if (edge.u == 2 && edge.v == 10)
+					std::cout << "    higher than previous" << std::endl;
+
 				_histograms[e].clear();
-			else
+
+			} else
 				return;
 		}
+
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "    inc bin " << bin << std::endl;
 
 		_histograms[e].inc(bin);
 	}
@@ -43,8 +58,13 @@ public:
 
 	ValueType operator[](EdgeIdType e) const {
 
+		auto edge = _histograms.getRegionGraph().edge(e);
+
 		// pivot element, 1-based index
 		int pivot = Q*_histograms[e].sum()/100 + 1;
+
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "querying quantile " << Q << " at pivot " << pivot << std::endl;
 
 		int sum = 0;
 		int bin = 0;
@@ -55,6 +75,11 @@ public:
 			if (sum >= pivot)
 				break;
 		}
+
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "    bin is " << bin << std::endl;
+		if (edge.u == 2 && edge.v == 10)
+			std::cout << "    score is " << undiscretize<Precision>(bin, Bins) << std::endl;
 
 		return undiscretize<Precision>(bin, Bins);
 	}
