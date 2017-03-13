@@ -1,4 +1,4 @@
-__version__ = '0.8_compat_0.6'
+__version__ = '0.8'
 
 def agglomerate(
         affs,
