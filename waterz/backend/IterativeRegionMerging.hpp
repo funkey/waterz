@@ -51,8 +51,11 @@ public:
 
 			std::cout << "computing initial scores" << std::endl;
 
-			for (EdgeIdType e = 0; e < _regionGraph.edges().size(); e++)
+			for (EdgeIdType e = 0; e < _regionGraph.edges().size(); e++) {
+
 				scoreEdge(e, edgeScoringFunction);
+				visitor.onEdgeScored(e, _edgeScores[e]);
+			}
 		}
 
 		std::cout << "merging until " << threshold << std::endl;
@@ -92,6 +95,7 @@ public:
 				// if we encountered a stale edge, recompute it's score and 
 				// place it back in the queue
 				ScoreType newScore = scoreEdge(next, edgeScoringFunction);
+				visitor.onEdgeScored(next, newScore);
 				_stale[next] = false;
 				assert(newScore >= score);
 
