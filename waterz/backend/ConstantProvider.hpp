@@ -13,7 +13,7 @@ public:
 	template <typename RegionGraphType>
 	ConstantProvider(RegionGraphType&) {}
 
-	ValueType operator()() const {
+	inline ValueType operator()() const {
 
 		return C;
 	}

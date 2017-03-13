@@ -15,18 +15,18 @@ public:
 	MaxKAffinityProvider(RegionGraphType& regionGraph) :
 		_maxKValues(regionGraph) {}
 
-	void addAffinity(EdgeIdType e, Precision affinity) {
+	inline void addAffinity(EdgeIdType e, Precision affinity) {
 
 		_maxKValues[e].push(affinity);
 	}
 
-	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_maxKValues[to].merge(_maxKValues[from]);
 		return true;
 	}
 
-	const MaxKValues<Precision,K>& operator[](EdgeIdType e) const {
+	inline const MaxKValues<Precision,K>& operator[](EdgeIdType e) const {
 
 		return _maxKValues[e];
 	}

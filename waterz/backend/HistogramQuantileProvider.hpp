@@ -20,13 +20,13 @@ public:
 	HistogramQuantileProvider(RegionGraphType& regionGraph) :
 		_histograms(regionGraph) {}
 
-	void addAffinity(EdgeIdType e, ValueType affinity) {
+	inline void addAffinity(EdgeIdType e, ValueType affinity) {
 
 		int bin = discretize<int>(affinity, Bins);
 		_histograms[e].inc(bin);
 	}
 
-	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_histograms[to] += _histograms[from];
 		_histograms[from].clear();
@@ -34,7 +34,7 @@ public:
 		return true;
 	}
 
-	ValueType operator[](EdgeIdType e) const {
+	inline ValueType operator[](EdgeIdType e) const {
 
 		// pivot element, 1-based index
 		int pivot = Q*_histograms[e].sum()/100 + 1;

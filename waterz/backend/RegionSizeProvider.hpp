@@ -11,7 +11,7 @@ public:
 	RegionSizeProvider(RegionGraphType& regionGraph) :
 		_regionSizes(regionGraph) {}
 
-	void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {
+	inline void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {
 
 		_regionSizes[n]++;
 	}
@@ -24,7 +24,7 @@ public:
 		return true;
 	}
 
-	ValueType operator[](NodeIdType n) const {
+	inline ValueType operator[](NodeIdType n) const {
 
 		return _regionSizes[n];
 	}

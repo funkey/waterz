@@ -20,12 +20,12 @@ public:
 	VectorQuantileProvider(RegionGraphType& regionGraph) :
 		_values(regionGraph) {}
 
-	void addAffinity(EdgeIdType e, ValueType affinity) {
+	inline void addAffinity(EdgeIdType e, ValueType affinity) {
 
 		_values[e].push_back(affinity);
 	}
 
-	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_values[to].reserve(_values[to].size() + _values[from].size());
 
@@ -41,7 +41,7 @@ public:
 		return true;
 	}
 
-	ValueType operator[](EdgeIdType e) const {
+	inline ValueType operator[](EdgeIdType e) const {
 
 		auto quantile = getQuantileIterator(_values[e].begin(), _values[e].end(), Q);
 		return *quantile;

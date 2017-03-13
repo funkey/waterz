@@ -17,7 +17,7 @@ public:
 	template <typename RegionGraphType>
 	RandomNumberProvider(RegionGraphType&) {}
 
-	ValueType operator()() const {
+	inline ValueType operator()() const {
 
 		return ValueType(rand())/RAND_MAX;
 	}

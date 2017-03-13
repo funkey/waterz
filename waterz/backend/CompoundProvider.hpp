@@ -21,28 +21,28 @@ public:
 		Parent(regionGraph) {}
 
 	template <typename EdgeIdType>
-	void notifyNewEdge(EdgeIdType e) {
+	inline void notifyNewEdge(EdgeIdType e) {
 	
 		Head::notifyNewEdge(e);
 		Parent::notifyNewEdge(e);
 	}
 
 	template <typename EdgeIdType, typename ScoreType>
-	void addAffinity(EdgeIdType e, ScoreType affinity) {
+	inline void addAffinity(EdgeIdType e, ScoreType affinity) {
 
 		Head::addAffinity(e, affinity);
 		Parent::addAffinity(e, affinity);
 	}
 
 	template <typename NodeIdType>
-	void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {
+	inline void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {
 
 		Head::addVoxel(n, x, y, z);
 		Parent::addVoxel(n, x, y, z);
 	}
 
 	template<typename NodeIdType>
-	bool notifyNodeMerge(NodeIdType from, NodeIdType to) {
+	inline bool notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
 		return (
 				Head::notifyNodeMerge(from, to) ||
@@ -50,7 +50,7 @@ public:
 	}
 
 	template<typename EdgeIdType>
-	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		return (
 				Head::notifyEdgeMerge(from, to) ||

@@ -11,17 +11,17 @@ public:
 	MaxAffinityProvider(RegionGraphType& regionGraph) :
 		_maxAffinities(regionGraph) {}
 
-	void notifyNewEdge(EdgeIdType e) {
+	inline void notifyNewEdge(EdgeIdType e) {
 
 		_maxAffinities[e] = 0;
 	}
 
-	void addAffinity(EdgeIdType e, ValueType affinity) {
+	inline void addAffinity(EdgeIdType e, ValueType affinity) {
 	
 		_maxAffinities[e] = std::max(_maxAffinities[e], affinity);
 	}
 
-	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		if (_maxAffinities[to] >= _maxAffinities[from])
 			// no change
@@ -33,7 +33,7 @@ public:
 		return true;
 	}
 
-	ValueType operator[](EdgeIdType e) const {
+	inline ValueType operator[](EdgeIdType e) const {
 
 		return _maxAffinities[e];
 	}
