@@ -9,7 +9,7 @@
  * A quantile provider using histograms to find an approximate quantile. This 
  * assumes that all values are in the range [0,1].
  */
-template <typename RegionGraphType, int Q, typename Precision, int Bins = 256>
+template <typename RegionGraphType, int Q, typename Precision, int Bins = 256, bool InitWithMax = true>
 class HistogramQuantileProvider : public StatisticsProvider {
 
 public:
@@ -23,6 +23,15 @@ public:
 	void addAffinity(EdgeIdType e, ValueType affinity) {
 
 		int bin = discretize<int>(affinity, Bins);
+
+		if (InitWithMax && _histograms[e].lowestBin() != Bins) {
+
+			if (bin > _histograms[e].lowestBin())
+				_histograms[e].clear();
+			else
+				return;
+		}
+
 		_histograms[e].inc(bin);
 	}
 
