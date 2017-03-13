@@ -40,7 +40,8 @@ get_region_graph(
 	std::ptrdiff_t ydim = aff.shape()[2];
 	std::ptrdiff_t xdim = aff.shape()[3];
 
-	std::vector<std::map<ID, EdgeIdType>> edges(max_segid+1);
+	// list of affinities between pairs of regions
+	std::vector<std::map<ID, std::vector<F>>> affinities(max_segid+1);
 
 	EdgeIdType e;
 	std::size_t p[3];
@@ -49,9 +50,6 @@ get_region_graph(
 			for (p[2] = 0; p[2] < xdim; ++p[2]) {
 
 				ID id1 = seg[p[0]][p[1]][p[2]];
-				if (id1 == 0)
-					continue;
-
 				statisticsProvider.addVoxel(id1, p[2], p[1], p[0]);
 
 				for (int d = 0; d < 3; d++) {
@@ -60,30 +58,27 @@ get_region_graph(
 						continue;
 
 					ID id2 = seg[p[0]-(d==0)][p[1]-(d==1)][p[2]-(d==2)];
-					if (id2 == 0)
-						continue;
 
 					if (id1 != id2) {
 
 						auto mm = std::minmax(id1, id2);
-						auto edgeIt = edges[mm.first].find(mm.second);
-
-						if (edgeIt == edges[mm.first].end()) {
-
-							e = rg.addEdge(mm.first, mm.second);
-							edges[mm.first][mm.second] = e;
-
-							statisticsProvider.notifyNewEdge(e);
-
-						} else {
-
-							e = edgeIt->second;
-						}
-
-						statisticsProvider.addAffinity(e, aff[d][p[0]][p[1]][p[2]]);
+						affinities[mm.first][mm.second].push_back(aff[d][p[0]][p[1]][p[2]]);
 					}
 				}
 			}
+
+	for (ID id1 = 1; id1 <= max_segid; ++id1) {
+		for (const auto& p: affinities[id1]) {
+
+			// p.first is ID
+			// p.second is list of affiliated edges
+			EdgeIdType e = rg.addEdge(id1, p.first);
+			statisticsProvider.notifyNewEdge(e);
+
+			for (F affinity : p.second)
+				statisticsProvider.addAffinity(e, affinity);
+        }
+    }
 
 	std::cout << "Region graph number of edges: " << rg.edges().size() << std::endl;
 }
