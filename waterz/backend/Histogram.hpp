@@ -8,7 +8,7 @@ class Histogram {
 
 public:
 
-	Histogram() : _lowestBin(Bins) {}
+	Histogram() { clear(); }
 
 	Histogram operator+(const Histogram& other) {
 
