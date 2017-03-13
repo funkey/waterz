@@ -21,11 +21,17 @@ public:
 		_maxAffinities[e] = std::max(_maxAffinities[e], affinity);
 	}
 
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		_maxAffinities[to] = std::max(_maxAffinities[to], _maxAffinities[from]);
+		if (_maxAffinities[to] >= _maxAffinities[from])
+			// no change
+			return false;
+
+		_maxAffinities[to] = _maxAffinities[from];
+
+		// score changed
+		return true;
 	}
-
 
 	ValueType operator[](EdgeIdType e) const {
 

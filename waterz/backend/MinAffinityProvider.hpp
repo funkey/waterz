@@ -21,9 +21,16 @@ public:
 		_minAffinities[e] = std::min(_minAffinities[e], affinity);
 	}
 
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		_minAffinities[to] = std::min(_minAffinities[to], _minAffinities[from]);
+		if (_minAffinities[to] <= _minAffinities[from])
+			// no change
+			return false;
+
+		_minAffinities[to] = _minAffinities[from];
+
+		// score changed
+		return true;
 	}
 
 	ValueType operator[](EdgeIdType e) const {

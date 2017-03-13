@@ -20,9 +20,10 @@ public:
 		_maxKValues[e].push(affinity);
 	}
 
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_maxKValues[to].merge(_maxKValues[from]);
+		return true;
 	}
 
 	const MaxKValues<Precision,K>& operator[](EdgeIdType e) const {

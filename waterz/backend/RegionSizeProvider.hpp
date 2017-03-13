@@ -16,10 +16,12 @@ public:
 		_regionSizes[n]++;
 	}
 
-	inline void notifyNodeMerge(NodeIdType from, NodeIdType to) {
+	inline bool notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
 		_regionSizes[to] += _regionSizes[from];
 		_regionSizes[from] = 0;
+
+		return true;
 	}
 
 	ValueType operator[](NodeIdType n) const {

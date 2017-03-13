@@ -26,10 +26,12 @@ public:
 		_histograms[e].inc(bin);
 	}
 
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_histograms[to] += _histograms[from];
 		_histograms[from].clear();
+
+		return true;
 	}
 
 	ValueType operator[](EdgeIdType e) const {

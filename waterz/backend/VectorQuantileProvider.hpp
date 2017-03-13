@@ -25,7 +25,7 @@ public:
 		_values[e].push_back(affinity);
 	}
 
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		_values[to].reserve(_values[to].size() + _values[from].size());
 
@@ -37,6 +37,8 @@ public:
 		std::nth_element(_values[to].begin(), quantile, _values[to].end());
 
 		_values[from].clear();
+
+		return true;
 	}
 
 	ValueType operator[](EdgeIdType e) const {

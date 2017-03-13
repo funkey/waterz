@@ -42,17 +42,19 @@ public:
 	}
 
 	template<typename NodeIdType>
-	void notifyNodeMerge(NodeIdType from, NodeIdType to) {
+	bool notifyNodeMerge(NodeIdType from, NodeIdType to) {
 
-		Head::notifyNodeMerge(from, to);
-		Parent::notifyNodeMerge(from, to);
+		return (
+				Head::notifyNodeMerge(from, to) ||
+				Parent::notifyNodeMerge(from, to));
 	}
 
 	template<typename EdgeIdType>
-	void notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
+	bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
-		Head::notifyEdgeMerge(from, to);
-		Parent::notifyEdgeMerge(from, to);
+		return (
+				Head::notifyEdgeMerge(from, to) ||
+				Parent::notifyEdgeMerge(from, to));
 	}
 };
 

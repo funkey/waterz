@@ -145,14 +145,17 @@ private:
 		NodeIdType b = _regionGraph.edge(e).v;
 
 		// assign new node a = a + b
-		statisticsProvider.notifyNodeMerge(b, a);
+		bool nodeStatisticsChanged = statisticsProvider.notifyNodeMerge(b, a);
 
 		// set path
 		_rootPaths[b] = a;
 
-		// mark all incident edges of a as stale...
-		for (EdgeIdType neighborEdge : _regionGraph.incEdges(a))
-			_stale[neighborEdge] = true;
+		if (nodeStatisticsChanged) {
+
+			// mark all incident edges of a as stale...
+			for (EdgeIdType neighborEdge : _regionGraph.incEdges(a))
+				_stale[neighborEdge] = true;
+		}
 
 		// ...and update incident edges of b
 		std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(b);
@@ -176,7 +179,9 @@ private:
 
 				_regionGraph.moveEdge(neighborEdge, a, neighbor);
 				assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
-				_stale[neighborEdge] = true;
+
+				if (nodeStatisticsChanged)
+					_stale[neighborEdge] = true;
 
 			} else {
 
@@ -195,23 +200,26 @@ private:
 					// We got lucky, we can reuse the edge that is attached to a 
 					// already
 
-					statisticsProvider.notifyEdgeMerge(neighborEdge, aNeighborEdge);
+					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(neighborEdge, aNeighborEdge);
 
 					_regionGraph.removeEdge(neighborEdge);
 					_deleted[neighborEdge] = true;
+					if (edgeStatisticChanged)
+						_stale[aNeighborEdge] = true;
 
 				} else {
 
 					// Bummer. The new edge should be the one pointing from 
 					// a to neighbor.
 
-					statisticsProvider.notifyEdgeMerge(aNeighborEdge, neighborEdge);
+					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(aNeighborEdge, neighborEdge);
 
 					_regionGraph.removeEdge(aNeighborEdge);
 					_regionGraph.moveEdge(neighborEdge, a, neighbor);
 					assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
 
-					_stale[neighborEdge] = true;
+					if (edgeStatisticChanged)
+						_stale[neighborEdge] = true;
 					_deleted[aNeighborEdge] = true;
 				}
 			}
