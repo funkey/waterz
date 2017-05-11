@@ -4,6 +4,7 @@
 #include "RegionSizeProvider.hpp"
 #include "MinAffinityProvider.hpp"
 #include "MaxAffinityProvider.hpp"
+#include "MeanAffinityProvider.hpp"
 #include "HistogramQuantileProvider.hpp"
 #include "VectorQuantileProvider.hpp"
 #include "MaxKAffinityProvider.hpp"
@@ -104,6 +105,9 @@ using MinAffinity = EdgeStatisticValue<RegionGraphType, MinAffinityProvider<Regi
 
 template <typename RegionGraphType, typename Precision>
 using MaxAffinity = EdgeStatisticValue<RegionGraphType, MaxAffinityProvider<RegionGraphType, Precision>>;
+
+template <typename RegionGraphType, typename Precision>
+using MeanAffinity = EdgeStatisticValue<RegionGraphType, MeanAffinityProvider<RegionGraphType, Precision>>;
 
 template <typename RegionGraphType, int Quantile, typename Precision, int Bins>
 using HistogramQuantileAffinity = EdgeStatisticValue<RegionGraphType, HistogramQuantileProvider<RegionGraphType, Quantile, Precision, Bins>>;

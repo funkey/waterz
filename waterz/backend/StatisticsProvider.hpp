@@ -8,9 +8,16 @@ class StatisticsProvider {
 
 public:
 
+	/**
+	 * Callback for adding edges to the RAG.
+	 */
 	template <typename EdgeIdType>
 	inline void notifyNewEdge(EdgeIdType e) {}
 
+	/**
+	 * Callback for adding voxel-level affinities to an edge. Will be called 
+	 * after notifyNewEdge().
+	 */
 	template <typename EdgeIdType, typename ScoreType>
 	inline void addAffinity(EdgeIdType e, ScoreType affinity) {}
 
