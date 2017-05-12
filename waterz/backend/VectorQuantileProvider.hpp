@@ -9,7 +9,7 @@
  * A quantile provider using std::vector and std::nth_element to find the exact 
  * quantile.
  */
-template <typename RegionGraphType, int Q, typename Precision>
+template <typename RegionGraphType, int Q, typename Precision, bool InitWithMax = true>
 class VectorQuantileProvider : public StatisticsProvider {
 
 public:
@@ -21,6 +21,17 @@ public:
 		_values(regionGraph) {}
 
 	inline void addAffinity(EdgeIdType e, ValueType affinity) {
+
+		if (InitWithMax) {
+
+			if (_values[e].size() == 1) {
+
+				if (_values[e][0] < affinity)
+					_values[e][0] = affinity;
+
+				return;
+			}
+		}
 
 		_values[e].push_back(affinity);
 	}
