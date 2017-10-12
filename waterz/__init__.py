@@ -8,7 +8,7 @@ def agglomerate(
         aff_threshold_low  = 0.0001,
         aff_threshold_high = 0.9999,
         return_merge_history = False,
-        scoring_function = 'Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>>',
+        scoring_function = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
         discretize_queue = 0,
         force_rebuild = False):
     '''
@@ -50,7 +50,7 @@ def agglomerate(
             If set to True, the returning tuple will contain a merge history,
             relative to the previous segmentation.
 
-        scoring_function: string, default 'Multiply<OneMinus<MaxAffinity<AffinitiesType>>, MinSize<SizesType>>'
+        scoring_function: string, default 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
 
             A C++ type string specifying the edge scoring function to use. See
 
