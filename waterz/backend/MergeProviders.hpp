@@ -37,7 +37,7 @@ template <typename ... T, typename Element>
 struct MergeProviders<Element, CompoundProvider<T...>> {
 	typedef typename Insert<CompoundProvider<T...>, Element>::Value Value;
 };
-// both are type chains
+// both are type chains -> iterate
 template <typename ... T, typename ... S>
 struct MergeProviders<CompoundProvider<T...>, CompoundProvider<S...>> :
 		public
@@ -47,4 +47,9 @@ struct MergeProviders<CompoundProvider<T...>, CompoundProvider<S...>> :
 							typename CompoundProvider<S...>::HeadType
 						>::Value,
 						typename CompoundProvider<S...>::Parent> {
+};
+// end of iteration
+template <typename ... T>
+struct MergeProviders<CompoundProvider<T...>, EndOfCompound> {
+	typedef CompoundProvider<T...> Value;
 };

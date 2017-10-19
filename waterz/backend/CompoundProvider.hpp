@@ -58,11 +58,21 @@ public:
 	}
 };
 
+
 // end of recursion
-template <typename T>
-class CompoundProvider<T> : public T {
+
+struct EndOfCompound {};
+
+template <typename Head>
+class CompoundProvider<Head> : public Head {
 public:
-	typedef T HeadType;
+
+	typedef Head HeadType;
+	typedef EndOfCompound Parent;
+
+	template <typename RegionGraphType>
+	CompoundProvider(RegionGraphType& regionGraph) :
+		Head(regionGraph) {}
 };
 
 #endif // WATERZ_COMPOUND_PROVIDER_H__
