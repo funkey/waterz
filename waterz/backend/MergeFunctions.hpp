@@ -2,6 +2,7 @@
 #define MERGE_FUNCTIONS_H__
 
 #include "RegionSizeProvider.hpp"
+#include "ContactAreaProvider.hpp"
 #include "MinAffinityProvider.hpp"
 #include "MaxAffinityProvider.hpp"
 #include "MeanAffinityProvider.hpp"
@@ -141,6 +142,12 @@ private:
 
 	const StatisticsProviderType& _maxKAffinityProvider;
 };
+
+/**
+ * Scores edges with the size of the contact area.
+ */
+template <typename RegionGraphType>
+using ContactArea = EdgeStatisticValue<RegionGraphType, ContactAreaProvider<RegionGraphType>>;
 
 /**
  * Scores edges with a random number between 0 and 1.
