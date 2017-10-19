@@ -89,6 +89,9 @@ template <typename T1, typename T2>
 using Add = BinaryOperator<T1, T2, std::plus>;
 
 template <typename T1, typename T2>
+using Subtract = BinaryOperator<T1, T2, std::minus>;
+
+template <typename T1, typename T2>
 using Multiply = BinaryOperator<T1, T2, std::multiplies>;
 
 template <typename T>
