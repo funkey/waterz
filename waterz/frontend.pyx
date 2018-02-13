@@ -4,7 +4,15 @@ from libcpp cimport bool
 import numpy as np
 cimport numpy as np
 
-def agglomerate(affs, thresholds, gt = None, fragments = None, aff_threshold_low  = 0.0001, aff_threshold_high = 0.9999, return_merge_history = False):
+def agglomerate(
+        affs,
+        thresholds,
+        gt=None,
+        fragments=None,
+        aff_threshold_low=0.0001,
+        aff_threshold_high=0.9999,
+        return_merge_history=False,
+        return_region_graph=False):
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
@@ -50,6 +58,10 @@ def agglomerate(affs, thresholds, gt = None, fragments = None, aff_threshold_low
         if return_merge_history:
 
             result += (merge_history,)
+
+        if return_region_graph:
+
+            result += (getRegionGraph(state),)
 
         if len(result) == 1:
             yield result[0]
@@ -98,6 +110,11 @@ cdef extern from "c_frontend.h":
         uint64_t c
         double score
 
+    struct ScoredEdge:
+        uint64_t u
+        uint64_t v
+        double score
+
     struct WaterzState:
         int     context
         Metrics metrics
@@ -116,5 +133,7 @@ cdef extern from "c_frontend.h":
     vector[Merge] mergeUntil(
             WaterzState& state,
             float        threshold)
+
+    vector[ScoredEdge] getRegionGraph(WaterzState& state)
 
     void free(WaterzState& state)

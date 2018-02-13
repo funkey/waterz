@@ -42,6 +42,18 @@ struct Merge {
 	ScoreValue score;
 };
 
+struct ScoredEdge {
+
+	ScoredEdge(SegID u_, SegID v_, ScoreValue score_) :
+		u(u_),
+		v(v_),
+		score(score_) {}
+
+	SegID u;
+	SegID v;
+	ScoreValue score;
+};
+
 struct WaterzState {
 
 	int     context;
@@ -143,6 +155,8 @@ WaterzState initialize(
 std::vector<Merge> mergeUntil(
 		WaterzState& state,
 		float        threshold);
+
+std::vector<ScoredEdge> getRegionGraph(WaterzState& state);
 
 void free(WaterzState& state);
 

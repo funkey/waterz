@@ -131,6 +131,38 @@ public:
 			segmentation.data()[i] = getRoot(segmentation.data()[i]);
 	}
 
+	/**
+	 * Get the region graph corresponding to the current merge level.
+	 */
+	template <typename ScoredEdge, typename EdgeScoringFunction>
+	std::vector<ScoredEdge> extractRegionGraph(EdgeScoringFunction& edgeScoringFunction) {
+
+		std::vector<ScoredEdge> edges;
+
+		for (EdgeIdType e = 0; e < _regionGraph.numEdges(); e++) {
+
+			if (_deleted[e])
+				continue;
+
+			ScoreType score;
+			if (_stale[e])
+				score = scoreEdge(e, edgeScoringFunction);
+			else
+				score = _edgeScores[e];
+
+			if (score < _mergedUntil)
+				continue;
+
+			edges.push_back(
+				ScoredEdge(
+					_regionGraph.edge(e).u,
+					_regionGraph.edge(e).v,
+					score));
+		}
+
+		return edges;
+	}
+
 private:
 
 	/**

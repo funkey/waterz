@@ -8,6 +8,7 @@ def agglomerate(
         aff_threshold_low  = 0.0001,
         aff_threshold_high = 0.9999,
         return_merge_history = False,
+        return_region_graph = False,
         scoring_function = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
         discretize_queue = 0,
         force_rebuild = False):
@@ -49,6 +50,11 @@ def agglomerate(
 
             If set to True, the returning tuple will contain a merge history,
             relative to the previous segmentation.
+
+        return_region_graph: bool
+
+            If set to True, the returning tuple will contain the region graph
+            for the returned segmentation.
 
         scoring_function: string, default 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
 
@@ -96,6 +102,11 @@ def agglomerate(
             A list of dictionaries with keys 'a', 'b', 'c', and 'score',
             indicating that region a got merged with b into c with the given
             score.
+
+        region_graph (only if return_region_graph is True)
+
+            A list of dictionaries with keys 'u', 'v', and 'score', indicating
+            an edge between u and v with the given score.
 
     Examples
     --------
@@ -238,4 +249,12 @@ def agglomerate(
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-    return __import__(module_name).agglomerate(affs, thresholds, gt, fragments, aff_threshold_low, aff_threshold_high, return_merge_history)
+    return __import__(module_name).agglomerate(
+        affs,
+        thresholds,
+        gt,
+        fragments,
+        aff_threshold_low,
+        aff_threshold_high,
+        return_merge_history,
+        return_region_graph)

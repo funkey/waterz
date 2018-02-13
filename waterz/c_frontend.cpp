@@ -154,6 +154,16 @@ mergeUntil(
 	return mergeHistory;
 }
 
+std::vector<ScoredEdge>
+getRegionGraph(WaterzState& state) {
+
+	WaterzContext* context = WaterzContext::get(state.context);
+	std::shared_ptr<RegionMergingType> regionMerging = context->regionMerging;
+	std::shared_ptr<ScoringFunctionType> scoringFunction = context->scoringFunction;
+
+	return regionMerging->extractRegionGraph<ScoredEdge>(*scoringFunction);
+}
+
 void
 free(WaterzState& state) {
 
