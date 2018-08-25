@@ -96,7 +96,7 @@ def __initialize(
         aff_threshold_high,
         find_fragments)
 
-cdef extern from "c_frontend.h":
+cdef extern from "frontend_agglomerate.h":
 
     struct Metrics:
         double voi_split

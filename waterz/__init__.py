@@ -146,14 +146,13 @@ def agglomerate(
     from Cython.Compiler.Main import Context, default_options
     from Cython.Build.Dependencies import cythonize
 
-    # compile frontend.pyx for given scoring function
+    # compile agglomerate.pyx for given scoring function
 
     source_dir = os.path.dirname(os.path.abspath(__file__))
     source_files = [
-            os.path.join(source_dir, 'frontend.pyx'),
-            os.path.join(source_dir, 'c_frontend.h'),
-            os.path.join(source_dir, 'c_frontend.cpp'),
-            os.path.join(source_dir, 'evaluate.hpp')
+            os.path.join(source_dir, 'agglomerate.pyx'),
+            os.path.join(source_dir, 'frontend_agglomerate.h'),
+            os.path.join(source_dir, 'frontend_agglomerate.cpp')
     ]
     source_files += glob.glob(source_dir + '/backend/*.hpp')
     source_files.sort()
@@ -217,12 +216,12 @@ def agglomerate(
 
             # cython requires that the pyx file has the same name as the module
             shutil.copy(
-                    os.path.join(source_dir, 'frontend.pyx'),
+                    os.path.join(source_dir, 'agglomerate.pyx'),
                     os.path.join(lib_dir, module_name + '.pyx')
             )
             shutil.copy(
-                    os.path.join(source_dir, 'c_frontend.cpp'),
-                    os.path.join(lib_dir, module_name + '_c_frontend.cpp')
+                    os.path.join(source_dir, 'frontend_agglomerate.cpp'),
+                    os.path.join(lib_dir, module_name + '_frontend_agglomerate.cpp')
             )
 
             # Remove the "-Wstrict-prototypes" compiler option, which isn't valid 
@@ -235,7 +234,7 @@ def agglomerate(
                     module_name,
                     sources = [
                         os.path.join(lib_dir, module_name + '.pyx'),
-                        os.path.join(lib_dir, module_name + '_c_frontend.cpp')
+                        os.path.join(lib_dir, module_name + '_frontend_agglomerate.cpp')
                     ],
                     include_dirs=include_dirs,
                     language='c++',

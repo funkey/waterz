@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "c_frontend.h"
+#include "frontend_agglomerate.h"
 #include "evaluate.hpp"
 #include "backend/MergeFunctions.hpp"
 #include "backend/basic_watershed.hpp"

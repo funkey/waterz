@@ -2,4 +2,4 @@ include README.md
 recursive-include waterz *.hpp
 recursive-include waterz *.pyx
 recursive-include waterz *.h
-include waterz/c_frontend.cpp
+include waterz/frontend_agglomerate.cpp
