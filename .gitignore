@@ -6,5 +6,4 @@ build
 *checkpoints*
 *.nfs
 *.sw[pmno]
-zwatershed/frontend.cpp
-zwatershed/parallel.cpp
+waterz/evaluate.cpp

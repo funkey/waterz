@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from .evaluate import evaluate
+
 __version__ = '0.8'
 
 def agglomerate(
