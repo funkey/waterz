@@ -28,8 +28,8 @@ def evaluate(
 
     return compare_arrays(
         shape[0], shape[1], shape[2],
-        segmentation_data,
-        gt_data)
+        gt_data,
+        segmentation_data)
 
 cdef extern from "frontend_evaluate.h":
 
@@ -43,5 +43,5 @@ cdef extern from "frontend_evaluate.h":
             size_t          width,
             size_t          height,
             size_t          depth,
-            const uint64_t* segmentation_data,
-            const uint64_t* gt_data);
+            const uint64_t* gt_data,
+            const uint64_t* segmentation_data);

@@ -18,8 +18,8 @@ compare_arrays(
 		std::size_t  width,
 		std::size_t  height,
 		std::size_t  depth,
-		const SegID* segmentation_data,
-		const SegID* gt_data);
+		const SegID* gt_data,
+		const SegID* segmentation_data);
 
 #endif
 
