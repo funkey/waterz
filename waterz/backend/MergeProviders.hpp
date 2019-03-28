@@ -1,3 +1,6 @@
+#ifndef MERGE_PROVIDERS_H__
+#define MERGE_PROVIDERS_H__
+
 #include <type_traits>
 #include "CompoundProvider.hpp"
 
@@ -53,3 +56,6 @@ template <typename ... T>
 struct MergeProviders<CompoundProvider<T...>, EndOfCompound> {
 	typedef CompoundProvider<T...> Value;
 };
+
+#endif // MERGE_PROVIDERS_H__
+

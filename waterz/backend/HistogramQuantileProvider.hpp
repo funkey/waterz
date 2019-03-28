@@ -9,7 +9,7 @@
  * A quantile provider using histograms to find an approximate quantile. This 
  * assumes that all values are in the range [0,1].
  */
-template <typename RegionGraphType, int Q, typename Precision, int Bins = 256, bool InitWithMax = true>
+template <typename RegionGraphType, typename QuantileFunction, typename Precision, int Bins = 256, bool InitWithMax = true>
 class HistogramQuantileProvider : public StatisticsProvider {
 
 public:
@@ -18,7 +18,8 @@ public:
 	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
 
 	HistogramQuantileProvider(RegionGraphType& regionGraph) :
-		_histograms(regionGraph) {}
+		_histograms(regionGraph),
+		_quantile_function(regionGraph) {}
 
 	inline void addAffinity(EdgeIdType e, ValueType affinity) {
 
@@ -45,8 +46,11 @@ public:
 
 	inline ValueType operator[](EdgeIdType e) const {
 
+		// get the quantile for the given edge
+		int q = _quantile_function(e);
+
 		// pivot element, 1-based index
-		int pivot = Q*_histograms[e].sum()/100 + 1;
+		int pivot = q*_histograms[e].sum()/100 + 1;
 
 		int sum = 0;
 		int bin = 0;
@@ -64,6 +68,7 @@ public:
 private:
 
 	typename RegionGraphType::template EdgeMap<Histogram<Bins>> _histograms;
+	QuantileFunction _quantile_function;
 };
 
 #endif // WATERZ_HISTOGRAM_QUANTILE_PROVIDER_H__

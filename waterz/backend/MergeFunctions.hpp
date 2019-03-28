@@ -11,6 +11,34 @@
 #include "MaxKAffinityProvider.hpp"
 #include "RandomNumberProvider.hpp"
 #include "ConstantProvider.hpp"
+#include "MergeProviders.hpp"
+
+/**
+ * Scores edges with a constant.
+ */
+template <typename RegionGraphType, int C>
+class Constant {
+
+public:
+
+	typedef ConstantProvider<C> StatisticsProviderType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef typename StatisticsProviderType::ValueType ScoreType;
+
+	Constant(
+			RegionGraphType&,
+			const StatisticsProviderType& constantProvider) :
+		_constantProvider(constantProvider) {}
+
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return _constantProvider();
+	}
+
+private:
+
+	const StatisticsProviderType& _constantProvider;
+};
 
 /**
  * Scores edges with min size of incident regions.
@@ -110,8 +138,44 @@ using MaxAffinity = EdgeStatisticValue<RegionGraphType, MaxAffinityProvider<Regi
 template <typename RegionGraphType, typename Precision>
 using MeanAffinity = EdgeStatisticValue<RegionGraphType, MeanAffinityProvider<RegionGraphType, Precision>>;
 
+template <typename RegionGraphType, typename QuantileFunction, typename Precision, int Bins, bool InitWithMax = true>
+class HistogramQuantileFunctionAffinity {
+
+public:
+
+	typedef HistogramQuantileProvider<RegionGraphType, QuantileFunction, Precision, Bins, InitWithMax> HistogramProviderType;
+	typedef typename QuantileFunction::StatisticsProviderType QuantileFunctionProviderType;
+	typedef typename MergeProviders<
+				HistogramProviderType,
+				QuantileFunctionProviderType>::Value
+			StatisticsProviderType;
+
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+	typedef Precision ScoreType;
+
+	HistogramQuantileFunctionAffinity(
+			RegionGraphType&,
+			const StatisticsProviderType& mergedStatistics) :
+		_histogramProvider(mergedStatistics) {}
+
+	inline ScoreType operator()(EdgeIdType e) {
+
+		return _histogramProvider[e];
+	}
+
+private:
+
+	const HistogramProviderType& _histogramProvider;
+};
+
 template <typename RegionGraphType, int Quantile, typename Precision, int Bins, bool InitWithMax = true>
-using HistogramQuantileAffinity = EdgeStatisticValue<RegionGraphType, HistogramQuantileProvider<RegionGraphType, Quantile, Precision, Bins, InitWithMax>>;
+using HistogramQuantileAffinity = HistogramQuantileFunctionAffinity<
+	RegionGraphType,
+	Constant<RegionGraphType, Quantile>,
+	Precision,
+	Bins,
+	InitWithMax
+>;
 
 template <typename RegionGraphType, int Quantile, typename Precision, bool InitWithMax = true>
 using QuantileAffinity = EdgeStatisticValue<RegionGraphType, VectorQuantileProvider<RegionGraphType, Quantile, Precision, InitWithMax>>;
@@ -174,33 +238,6 @@ public:
 private:
 
 	const StatisticsProviderType& _randomProvider;
-};
-
-/**
- * Scores edges with a constant.
- */
-template <typename RegionGraphType, int C>
-class Constant {
-
-public:
-
-	typedef ConstantProvider<C> StatisticsProviderType;
-	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
-	typedef typename StatisticsProviderType::ValueType ScoreType;
-
-	Constant(
-			RegionGraphType&,
-			const StatisticsProviderType& constantProvider) :
-		_constantProvider(constantProvider) {}
-
-	inline ScoreType operator()(EdgeIdType e) {
-
-		return _constantProvider();
-	}
-
-private:
-
-	const StatisticsProviderType& _constantProvider;
 };
 
 #endif // MERGE_FUNCTIONS_H__
