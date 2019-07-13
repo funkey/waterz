@@ -1,8 +1,10 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
 import os
+
+version = '0.8.2'
 
 source_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'waterz')
 include_dirs = [
@@ -22,26 +24,31 @@ extensions = [
 ]
 
 setup(
-        name='waterz',
-        version='0.8',
-        description='Simple watershed and agglomeration for affinity graphs.',
-        url='https://github.com/funkey/waterz',
-        author='Jan Funke',
-        author_email='jfunke@iri.upc.edu',
-        license='MIT',
-        requires=['cython','numpy'],
-        packages=['waterz'],
-        package_data={
-            '': [
-                'waterz/*.h',
-                'waterz/*.hpp',
-                'waterz/*.cpp',
-                'waterz/*.cpp',
-                'waterz/*.pyx',
-                'waterz/backend/*.hpp',
-            ]
-        },
-        include_package_data=True,
-        zip_safe=False,
-        ext_modules=cythonize(extensions)
+    name='waterzed',
+    version=version,
+    description='Simple watershed and agglomeration for affinity graphs.',
+    url='https://github.com/funkey/waterz',
+    author='Jan Funke, Jingpeng Wu',
+    author_email='jfunke@iri.upc.edu',
+    license='MIT',
+    install_requires=['cython', 'numpy'],
+    packages=find_packages(),
+    package_data={
+	'': [
+	    'waterz/*.h',
+	    'waterz/*.hpp',
+	    'waterz/*.cpp',
+	    'waterz/*.cpp',
+	    'waterz/*.pyx',
+	    'waterz/backend/*.hpp',
+	]
+    },
+    include_package_data=True,
+    zip_safe=False,
+    ext_modules=cythonize(extensions),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+    ]
 )
