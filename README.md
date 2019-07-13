@@ -27,7 +27,9 @@ segmentations = waterz.agglomerate(affinities, thresholds)
 
 # Development
 ## Release to pypi
+
+We can only release code and compile in the installation machine.
 ```
-python setup.py bdist_wheel --universal
+python setup.py sdist
 twine upload dist/my-new-wheel
 ```
