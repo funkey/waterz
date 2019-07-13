@@ -24,3 +24,12 @@ thresholds = [0, 100, 200]
 
 segmentations = waterz.agglomerate(affinities, thresholds)
 ```
+
+# Development
+## Release to pypi
+
+We can only release code and compile in the installation machine.
+```
+python setup.py sdist
+twine upload dist/my-new-wheel
+```
