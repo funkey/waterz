@@ -1,3 +1,11 @@
+[![Build Status](https://travis-ci.org/jingpengw/waterz.svg?branch=master)](https://travis-ci.org/jingpengw/waterz)
+[![PyPI version](https://badge.fury.io/py/waterzed.svg)](https://badge.fury.io/py/waterzed)
+
+<!--
+    the coerage is not working on c++ code, so the coverage is 0 now!
+    [![Coverage Status](https://coveralls.io/repos/github/jingpengw/waterz/badge.svg?branch=master)](https://coveralls.io/github/jingpengw/waterz?branch=master)
+-->
+
 # waterz
 
 Pronounced *water-zed*. A simple watershed and region agglomeration library for
@@ -7,9 +15,21 @@ Based on the watershed implementation of [Aleksandar Zlateski](https://bitbucket
 
 # Installation
 
-`python setup.py install`
+Install c++ dependencies:
+```
+sudo apt install libboost-dev
+```
 
-Requires `numpy` and `cython`.
+Install from pipy
+```
+pip install waterzed
+```
+
+install manually
+```
+pip install -r requirements.txt
+python setup.py install
+```
 
 # Usage
 

@@ -6,6 +6,14 @@ import os
 
 version = '0.8.2'
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+    requirements = [l for l in requirements if not l.startswith('#')]
+
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 source_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'waterz')
 include_dirs = [
     source_dir,
@@ -27,11 +35,14 @@ setup(
     name='waterzed',
     version=version,
     description='Simple watershed and agglomeration for affinity graphs.',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://github.com/funkey/waterz',
     author='Jan Funke, Jingpeng Wu',
     author_email='jfunke@iri.upc.edu',
     license='MIT',
-    install_requires=['cython', 'numpy'],
+    install_requires=requirements,
+    tests_require=['pytest'],
     packages=find_packages(),
     package_data={
 	'': [
@@ -48,7 +59,8 @@ setup(
     ext_modules=cythonize(extensions),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache Software License",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ]
 )
