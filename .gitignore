@@ -7,3 +7,4 @@ build
 *.nfs
 *.sw[pmno]
 waterz/evaluate.cpp
+jwu/

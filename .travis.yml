@@ -1,0 +1,23 @@
+language: python 
+python:
+- '3.5'
+- '3.6'
+- '3.7-dev'
+
+install:
+- sudo find /usr -name '*.pyc' -delete
+- pip install .
+- python setup.py install  
+- pip install pytest
+- pip install coveralls
+- pip install pytest-cov # to get .coverage report via pytest
+
+script:
+- pytest --cov-append --cov=./waterz ./tests --verbose
+
+after_success:
+- coveralls 
+
+matrix:
+  allow_failures:
+  - python: '3.7-dev'
