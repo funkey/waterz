@@ -26,10 +26,12 @@ def evaluate(
     segmentation_data = &segmentation[0, 0, 0]
     gt_data = &gt[0, 0, 0]
 
-    return compare_arrays(
+    scores = compare_arrays(
         shape[0], shape[1], shape[2],
         gt_data,
         segmentation_data)
+
+    return scores
 
 cdef extern from "frontend_evaluate.h":
 

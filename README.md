@@ -6,10 +6,16 @@ affinity graphs.
 Based on the watershed implementation of [Aleksandar Zlateski](https://bitbucket.org/poozh/watershed) and [Chandan Singh](https://github.com/TuragaLab/zwatershed).
 
 # Installation
+Install from pipy
+```
+pip install waterzed
+```
 
-`python setup.py install`
-
-Requires `numpy` and `cython`.
+install manually
+```
+pip install -r requirements.txt
+python setup.py install
+```
 
 # Usage
 
