@@ -10,6 +10,12 @@ affinity graphs.
 Based on the watershed implementation of [Aleksandar Zlateski](https://bitbucket.org/poozh/watershed) and [Chandan Singh](https://github.com/TuragaLab/zwatershed).
 
 # Installation
+
+Install c++ dependencies:
+```
+sudo apt install libboost-dev
+```
+
 Install from pipy
 ```
 pip install waterzed
