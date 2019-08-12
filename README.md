@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/jingpengw/waterz.svg?branch=master)](https://travis-ci.org/jingpengw/waterz)
+[![PyPI version](https://badge.fury.io/py/waterzed.svg)](https://badge.fury.io/py/waterzed)
+
 # waterz
 
 Pronounced *water-zed*. A simple watershed and region agglomeration library for
