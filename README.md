@@ -1,6 +1,10 @@
 [![Build Status](https://travis-ci.org/jingpengw/waterz.svg?branch=master)](https://travis-ci.org/jingpengw/waterz)
 [![PyPI version](https://badge.fury.io/py/waterzed.svg)](https://badge.fury.io/py/waterzed)
-[![Coverage Status](https://coveralls.io/repos/github/jingpengw/waterz/badge.svg?branch=master)](https://coveralls.io/github/jingpengw/waterz?branch=master)
+
+<!--
+    the coerage is not working on c++ code, so the coverage is 0 now!
+    [![Coverage Status](https://coveralls.io/repos/github/jingpengw/waterz/badge.svg?branch=master)](https://coveralls.io/github/jingpengw/waterz?branch=master)
+-->
 
 # waterz
 
