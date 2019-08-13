@@ -35,6 +35,7 @@ setup(
     packages=find_packages(),
     package_data={
 	'': [
+            'waterz/*.py'
 	    'waterz/*.h',
 	    'waterz/*.hpp',
 	    'waterz/*.cpp',
@@ -46,6 +47,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     ext_modules=cythonize(extensions),
+    entry_points='''
+        [console_scripts]
+        evaluateseg=waterz.evaluate_cli:cli
+    ''',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
