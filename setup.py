@@ -4,14 +4,16 @@ from setuptools.command.build_ext import build_ext as _build_ext
 #from Cython.Build import cythonize
 import os
 
-version = '0.8.2'
+version = '0.8.6'
 
-with open('requirements.txt') as f:
+PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(PACKAGE_DIR, "requirements.txt")) as f:
     requirements = f.read().splitlines()
     requirements = [l for l in requirements if not l.startswith('#')]
 
 
-with open("README.md", "r") as fh:
+with open(os.path.join(PACKAGE_DIR, "README.md"), "r") as fh:
     long_description = fh.read()
 
 class build_ext(_build_ext):
@@ -57,17 +59,6 @@ setup(
     install_requires=requirements,
     tests_require=['pytest'],
     packages=find_packages(),
-    package_data={
-	'': [
-	    'waterz/*.h',
-	    'waterz/*.hpp',
-	    'waterz/*.cpp',
-	    'waterz/*.cpp',
-	    'waterz/*.pyx',
-	    'waterz/backend/*.hpp',
-	]
-    },
-    include_package_data=True,
     zip_safe=False,
     ext_modules=extensions,
     classifiers=[
