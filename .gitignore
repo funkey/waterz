@@ -6,5 +6,4 @@ build
 *checkpoints*
 *.nfs
 *.sw[pmno]
-waterz/evaluate.cpp
 jwu/
