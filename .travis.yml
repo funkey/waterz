@@ -9,7 +9,7 @@ services:
 
 env:
 - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 PLAT=manylinux1_x86_64
-- DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 PRE_CMD=linux32 PLAT=manylinux1_i686
+#- DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 PRE_CMD=linux32 PLAT=manylinux1_i686
 - DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64 PLAT=manylinux2010_x86_64
 
 before_install:

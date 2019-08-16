@@ -2,7 +2,7 @@
 set -e -x
 
 # Install a system package required by our library
-apt install -y libboost-dev
+yum install -y libboost-dev
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
