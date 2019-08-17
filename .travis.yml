@@ -16,11 +16,6 @@ env:
 before_install:
 - docker pull $DOCKER_IMAGE
 
-env:
-  global:
-  - TWINE_USERNAME=jingpengw
-  - secure: VEJlEEFQbXIspaU6uZ5l+XZ0m21++BALsYL0W5lFb93pjLs5I4HUGn88sZBr1FVFlhiuJfIfL7u4wOfMcrNRkK9V3So3gCvUmbhTtjkWLusq+hC1HN+tTGX0EmI1S3yrZPDnZyQzF+r/au7SqC5Lm3p7urmrXl5g8VzxQRydTz08BTPQ7tI+jteyuhTNzCDDhTjvGF2nIuyCh/qI9OjtC/pOQrdp+z9YkwX8ltjC/ydWYE5c+aW0sKGu/4yNqsQ2sG4Za5MvrTOkkza7F4dMPY7y2+R4nA2/Y04YHbBSEqyEDdu7nZVg4gr3dFSVszbaF4kZvVN1z6VEFQgBjLxjtV1aEdOeeeJfP56Eo5kyLeELyaORgZ+Yb6GkUq9KJwUTDBZUUhPUhwyfs93v3a0CQjQKjV6x8Gjsu/IE9Pj1TNIkp5mefrEZ/LC5fuA/jsJuCjb3wx04+3hY6fA9DdAQtxwvcZ6YTBEiB8W42197SuUzRZPMPxoFCu3+yOybqdfHbcWj6NvaLEjYk2s1q2ScoKxbaCm+4z844n6B+8bmnjwIAb36VHotbO75afSem7Fy5JxlivX0S/UEUH6TsPliSrLtkcRpopmleJwOp+NlO/YPneLyLmkcHP6bojwgwN9rpv3sKpvPVubkkcmMWE39zOErzdDC3lTPOqpO3c4FLiU=
-
 install:
 - sudo find /usr -name '*.pyc' -delete
 - sudo apt update
