@@ -37,7 +37,7 @@ after_success:
 - |
   if [[ $TRAVIS_TAG ]]; then
     python -m pip install twine
-    python -m twine upload wheelhouse/*.whl
+    python -m twine upload wheelhouse/waterz*.whl
   fi
 
 matrix:
