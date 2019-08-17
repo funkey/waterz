@@ -4,7 +4,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 #from Cython.Build import cythonize
 import os
 
-version = '0.8.7'
+version = '0.9.0'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -45,7 +45,7 @@ extensions = [
 ]
 
 setup(
-    name='waterzed',
+    name='waterz',
     version=version,
     description='Simple watershed and agglomeration for affinity graphs.',
     long_description=long_description,
