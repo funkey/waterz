@@ -4,7 +4,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 #from Cython.Build import cythonize
 import os
 
-version = '0.8.6'
+version = '0.8.7'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
