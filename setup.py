@@ -4,7 +4,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 #from Cython.Build import cythonize
 import os
 
-version = '0.9.0'
+version = '0.9.1'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,6 +59,7 @@ setup(
     install_requires=requirements,
     tests_require=['pytest'],
     packages=find_packages(),
+    package_data={'': ['*.pyx', '*.hpp', '*.cpp', '*.h', '*.py']},
     zip_safe=False,
     ext_modules=extensions,
     classifiers=[
