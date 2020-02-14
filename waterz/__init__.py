@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from .evaluate import evaluate
+from .scoring_functions import *
 
 __version__ = '0.8'
 
@@ -12,7 +13,7 @@ def agglomerate(
         aff_threshold_high = 0.9999,
         return_merge_history = False,
         return_region_graph = False,
-        scoring_function = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
+        scoring_function = 1.0 - MeanAffinity(),
         discretize_queue = 0,
         force_rebuild = False):
     '''
@@ -59,17 +60,14 @@ def agglomerate(
             If set to True, the returning tuple will contain the region graph
             for the returned segmentation.
 
-        scoring_function: string, default 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
+        scoring_function: ScoringFunction, default 1.0 - MeanAffinity()'
 
-            A C++ type string specifying the edge scoring function to use. See
+            The edge scoring function to use. See
 
-                https://github.com/funkey/waterz/blob/master/waterz/backend/MergeFunctions.hpp
+                https://github.com/funkey/waterz/blob/master/waterz/scoring_functions.py
 
-            for available functions, and
-
-                https://github.com/funkey/waterz/blob/master/waterz/backend/Operators.hpp
-
-            for operators to combine them.
+            for available functions. Scoring functions can be combined with the
+            standard operators (+, -, *, /, etc.).
 
         discretize_queue: int
 
@@ -161,6 +159,7 @@ def agglomerate(
     source_files.sort()
     source_files_hashes = [ hashlib.md5(open(f, 'r').read().encode('utf-8')).hexdigest() for f in source_files ]
 
+    scoring_function = str(scoring_function)
     key = scoring_function, discretize_queue, source_files_hashes, sys.version_info, sys.executable, Cython.__version__
     module_name = 'waterz_' + hashlib.md5(str(key).encode('utf-8')).hexdigest()
     lib_dir=os.path.expanduser('~/.cython/inline')
