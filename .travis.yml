@@ -1,9 +1,8 @@
 language: python
 
 python:
-- '3.5'
-- '3.6'
 - '3.7-dev'
+- '3.8'
 
 services:
 - docker
@@ -36,13 +35,10 @@ after_success:
 - ls wheelhouse/
 - |
   if [[ $TRAVIS_TAG ]]; then
+    echo "upload wheel file."
     python -m pip install twine
     python -m twine upload wheelhouse/waterz*.whl
   fi
-
-matrix:
-  allow_failures:
-  - python: 3.8-dev
 
 notifications:
   email: false

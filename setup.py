@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
-#from Cython.Build import cythonize
+# from Cython.Build import cythonize
 import os
 
-version = '0.9.0'
+VERSION = '0.9.4'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,6 +16,7 @@ with open(os.path.join(PACKAGE_DIR, "requirements.txt")) as f:
 with open(os.path.join(PACKAGE_DIR, "README.md"), "r") as fh:
     long_description = fh.read()
 
+
 class build_ext(_build_ext):
     """We assume no numpy at the begining
     https://stackoverflow.com/questions/19919905/how-to-bootstrap-numpy-installation-in-setup-py
@@ -26,6 +27,7 @@ class build_ext(_build_ext):
         __builtins__.__NUMPY_SETUP__ = False
         import numpy
         self.include_dirs.append(numpy.get_include())
+
 
 source_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'waterz')
 include_dirs = [
@@ -44,9 +46,10 @@ extensions = [
         extra_compile_args=['-std=c++11', '-w'])
 ]
 
+
 setup(
     name='waterz',
-    version=version,
+    version=VERSION,
     description='Simple watershed and agglomeration for affinity graphs.',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -59,6 +62,10 @@ setup(
     install_requires=requirements,
     tests_require=['pytest'],
     packages=find_packages(),
+    package_data={
+        '': ['*.pyx', '*.hpp', '*.cpp', '*.h', '*.py', 'backend/*.hpp'],
+        'backend': ['*.hpp']
+    },
     zip_safe=False,
     ext_modules=extensions,
     classifiers=[
