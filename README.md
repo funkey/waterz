@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/jingpengw/waterz.svg?branch=master)](https://travis-ci.org/jingpengw/waterz)
-[![PyPI version](https://badge.fury.io/py/waterzed.svg)](https://badge.fury.io/py/waterzed)
+[![PyPI version](https://badge.fury.io/py/waterz.svg)](https://badge.fury.io/py/waterz)
 
 <!--
     the coerage is not working on c++ code, so the coverage is 0 now!
