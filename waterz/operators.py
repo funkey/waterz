@@ -102,3 +102,8 @@ class Multiply(BinaryOperator):
 class Divide(BinaryOperator):
     def __init__(self, a, b):
         super(Divide, self).__init__(a, b, 'Divide')
+
+
+class Step(BinaryOperator):
+    def __init__(self, a, b):
+        super(Step, self).__init__(a, b, 'Step')
