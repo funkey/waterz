@@ -22,7 +22,7 @@ sudo apt install libboost-dev
 
 Install from pipy
 ```
-pip install waterzed
+pip install waterz
 ```
 
 install manually
