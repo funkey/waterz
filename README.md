@@ -16,19 +16,21 @@ Based on the watershed implementation of [Aleksandar Zlateski](https://bitbucket
 # Installation
 
 Install c++ dependencies:
+
 ```
 sudo apt install libboost-dev
 ```
 
-Install from pipy
+Install from PyPI
+
 ```
 pip install waterz
 ```
 
-install manually
+install from local version
+
 ```
-pip install -r requirements.txt
-python setup.py install
+pip install .
 ```
 
 # Usage
