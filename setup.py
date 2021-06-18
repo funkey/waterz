@@ -9,10 +9,6 @@ VERSION = '0.9.5'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(PACKAGE_DIR, "requirements.txt")) as f:
-    requirements = f.read().splitlines()
-    requirements = [l for l in requirements if not l.startswith('#')]
-
 
 with open(os.path.join(PACKAGE_DIR, "README.md"), "r") as fh:
     long_description = fh.read()
@@ -60,7 +56,7 @@ setup(
     license='MIT',
     cmdclass={'build_ext': build_ext},
     setup_requires=['numpy'],
-    install_requires=requirements,
+    install_requires=['numpy', 'cython'],
     tests_require=['pytest'],
     packages=find_packages(),
     package_data={
