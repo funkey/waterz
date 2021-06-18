@@ -3,14 +3,11 @@ from setuptools.extension import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
 # from Cython.Build import cythonize
 import os
+import builtins
 
 VERSION = '0.9.5'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-with open(os.path.join(PACKAGE_DIR, "requirements.txt")) as f:
-    requirements = f.read().splitlines()
-    requirements = [l for l in requirements if not l.startswith('#')]
 
 
 with open(os.path.join(PACKAGE_DIR, "README.md"), "r") as fh:
@@ -24,7 +21,7 @@ class build_ext(_build_ext):
     def finalize_options(self):
         _build_ext.finalize_options(self)
         # Prevent numpy from thinking it is still in its setup process:
-        __builtins__.__NUMPY_SETUP__ = False
+        builtins.__NUMPY_SETUP__ = False
         import numpy
         self.include_dirs.append(numpy.get_include())
 
@@ -59,7 +56,7 @@ setup(
     license='MIT',
     cmdclass={'build_ext': build_ext},
     setup_requires=['numpy'],
-    install_requires=requirements,
+    install_requires=['numpy', 'cython'],
     tests_require=['pytest'],
     packages=find_packages(),
     package_data={
@@ -73,5 +70,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-    ]
+    ],
+    requires_python=">=3.6, <4",
 )

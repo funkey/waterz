@@ -21,10 +21,7 @@ install:
 - sudo apt update
 - sudo apt install libboost-dev
 - pip install -r requirements.txt
-- python setup.py install
-- pip install pytest
-- pip install coveralls
-- pip install pytest-cov
+- pip install .
 
 script:
 - pytest --cov-append --cov=./waterz ./tests --verbose
