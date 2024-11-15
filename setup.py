@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
-# from Cython.Build import cythonize
+from Cython.Build import cythonize
 import os
 import builtins
 
-VERSION = '0.9.5'
+VERSION = '0.9.6'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,7 +36,7 @@ include_dirs = [
 extensions = [
     Extension(
         'waterz.evaluate',
-        sources=['waterz/evaluate.cpp', 'waterz/frontend_evaluate.cpp'],
+        sources=['waterz/evaluate.pyx', 'waterz/frontend_evaluate.cpp'],
         include_dirs=include_dirs,
         language='c++',
         extra_link_args=['-std=c++11'],
