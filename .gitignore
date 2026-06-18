@@ -13,3 +13,4 @@ src/waterz/**/*.pyc
 src/waterz/**/*.c
 src/waterz/**/*.so
 src/waterz/evaluate.cpp
+/_agglomerate_gen/

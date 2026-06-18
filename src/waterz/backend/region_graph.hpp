@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <iostream>
-#include <map>
 
 /**
  * Extract the region graph from a segmentation. Edges are annotated with the 
@@ -40,45 +39,80 @@ get_region_graph(
 	std::ptrdiff_t ydim = aff.shape()[2];
 	std::ptrdiff_t xdim = aff.shape()[3];
 
-	// list of affinities between pairs of regions
-	std::vector<std::map<ID, std::vector<F>>> affinities(max_segid+1);
+	// Use raw pointers for direct memory access instead of boost operator[][]
+	const ID* seg_data = seg.data();
+	const F* aff_data = aff.data();
+	const std::size_t slice_size = ydim * xdim;
+	const std::size_t aff_channel_size = zdim * slice_size;
 
-	EdgeIdType e;
-	std::size_t p[3];
-	for (p[0] = 0; p[0] < zdim; ++p[0])
-		for (p[1] = 0; p[1] < ydim; ++p[1])
-			for (p[2] = 0; p[2] < xdim; ++p[2]) {
+	for (std::ptrdiff_t z = 0; z < zdim; ++z)
+		for (std::ptrdiff_t y = 0; y < ydim; ++y)
+			for (std::ptrdiff_t x = 0; x < xdim; ++x) {
 
-				ID id1 = seg[p[0]][p[1]][p[2]];
-				statisticsProvider.addVoxel(id1, p[2], p[1], p[0]);
+				std::size_t idx = z * slice_size + y * xdim + x;
+				ID id1 = seg_data[idx];
+				statisticsProvider.addVoxel(id1, x, y, z);
 
-				for (int d = 0; d < 3; d++) {
-
-					if (p[d] == 0)
-						continue;
-
-					ID id2 = seg[p[0]-(d==0)][p[1]-(d==1)][p[2]-(d==2)];
-
+				// d=0: z-affinity, neighbor at z-1
+				if (z > 0) {
+					ID id2 = seg_data[idx - slice_size];
 					if (id1 != id2) {
+						EdgeIdType e = rg.findEdge(id1, id2);
+						if (e == RegionGraphType::NoEdge) {
+							e = rg.addEdge(id1, id2);
+							statisticsProvider.notifyNewEdge(e);
+						}
+						statisticsProvider.addAffinity(e, aff_data[idx]);
+					}
+				}
 
-						auto mm = std::minmax(id1, id2);
-						affinities[mm.first][mm.second].push_back(aff[d][p[0]][p[1]][p[2]]);
+				// d=1: y-affinity, neighbor at y-1
+				if (y > 0) {
+					ID id2 = seg_data[idx - xdim];
+					if (id1 != id2) {
+						EdgeIdType e = rg.findEdge(id1, id2);
+						if (e == RegionGraphType::NoEdge) {
+							e = rg.addEdge(id1, id2);
+							statisticsProvider.notifyNewEdge(e);
+						}
+						statisticsProvider.addAffinity(e, aff_data[aff_channel_size + idx]);
+					}
+				}
+
+				// d=2: x-affinity, neighbor at x-1
+				if (x > 0) {
+					ID id2 = seg_data[idx - 1];
+					if (id1 != id2) {
+						EdgeIdType e = rg.findEdge(id1, id2);
+						if (e == RegionGraphType::NoEdge) {
+							e = rg.addEdge(id1, id2);
+							statisticsProvider.notifyNewEdge(e);
+						}
+						statisticsProvider.addAffinity(e, aff_data[2 * aff_channel_size + idx]);
 					}
 				}
 			}
 
-	for (ID id1 = 1; id1 <= max_segid; ++id1) {
-		for (const auto& p: affinities[id1]) {
-
-			// p.first is ID
-			// p.second is list of affiliated edges
-			EdgeIdType e = rg.addEdge(id1, p.first);
-			statisticsProvider.notifyNewEdge(e);
-
-			for (F affinity : p.second)
-				statisticsProvider.addAffinity(e, affinity);
-        }
-    }
-
 	std::cout << "Region graph number of edges: " << rg.edges().size() << std::endl;
+}
+
+template<typename ID, typename StatisticsProviderType>
+inline
+void
+initialize_with_region_graph(
+		StatisticsProviderType& statisticsProvider,
+		RegionGraph<ID>& rg,
+		const std::vector<ScoredEdge>& edges,
+		const std::vector<double>& edges_metadata) {
+
+	typedef RegionGraph<ID> RegionGraphType;
+	typedef typename RegionGraphType::EdgeIdType EdgeIdType;
+
+	for (int i = 0; i < edges.size(); ++i) {
+		const auto& edge = edges[i];
+		double size = edges_metadata[i];
+		auto aff = 1.0 - edge.score;
+		EdgeIdType e = rg.addEdge(edge.u, edge.v);
+		statisticsProvider.addEdge(e, aff, size);
+	}
 }

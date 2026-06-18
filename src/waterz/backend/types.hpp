@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <boost/multi_array.hpp>
 #include <boost/multi_array/types.hpp>
 

@@ -1,6 +1,7 @@
 #ifndef WATERZ_EVALUATE_H__
 #define WATERZ_EVALUATE_H__
 
+#include <cstdint>
 #include <iostream>
 #include <tuple>
 #include <map>

@@ -24,6 +24,9 @@ public:
 	template <typename NodeIdType>
 	inline void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {}
 
+	template <typename EdgeIdType, typename ScoreType>
+	inline void addAffinity(EdgeIdType e, ScoreType affinity, double metadata) {}
+
 	/**
 	 * Callback for node merges: 'from' will be merged into 'to'. Return true, 
 	 * if this changed the statistics of this provider.
@@ -37,6 +40,9 @@ public:
 	 */
 	template<typename EdgeIdType>
 	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) { return false; }
+
+	template<typename EdgeIdType>
+	inline double getEdgeMetadata(EdgeIdType e) const { return 0; }
 };
 
 #endif // WATERZ_STATISTICS_PROVIDER_H__

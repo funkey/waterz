@@ -15,15 +15,28 @@ HERE = Path(__file__).parent
 
 
 def agglomerate(
-    affs: NDArray[np.float32],
-    thresholds: Sequence[float],
+    affs: NDArray[np.float32] | None = None,
+    thresholds: Sequence[float] | None = None,
     gt: NDArray[np.uint32] | None = None,
     fragments: NDArray[np.uint64] | None = None,
+    semantic: NDArray[np.uint8] | None = None,
+    segconstraint: NDArray[np.uint64] | None = None,
+    input_rag=None,
+    input_rag_metadata=None,
     aff_threshold_low: float = 0.0001,
     aff_threshold_high: float = 0.9999,
     return_merge_history: bool = False,
     return_region_graph: bool = False,
+    return_region_graph_metadata: bool = False,
     scoring_function: str = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>",
+    semantic_aff_threshold: float = 0.5,
+    semantic_size_threshold: int = 100_000,
+    semantic_signal_ratio: float = 0.6,
+    semantic_taint_labels: list[int] = [],
+    semantic_taint_threshold: float = 0.0,
+    size_heuristic_aff_threshold: float = 1.0,
+    size_heuristic_small_threshold: int = 1_000_000,
+    size_heuristic_large_threshold: int = 10_000_000,
     discretize_queue: int = 0,
     force_rebuild: bool = False,
 ) -> Iterator[tuple | NDArray[np.uint64]]:
@@ -142,48 +155,99 @@ def agglomerate(
             affs, range(100,10000,100), gt, return_merge_history = True):
             # ...
     """
-    import witty
+    _DEFAULT_SCORING = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
+    # Pre-compiled (shipped) modules keyed by discretize_queue, for the default
+    # mean scoring. Importing a ready .so avoids runtime JIT (witty) compilation
+    # -- and the concurrent-compile cache races that can corrupt it on workers.
+    # Other discretize_queue values / scoring functions fall back to JIT below.
+    _PRECOMPILED_BY_QUEUE = {0: "_agglomerate_default", 256: "_agglomerate_mean_bin256"}
+    _precompiled_name = (
+        _PRECOMPILED_BY_QUEUE.get(discretize_queue)
+        if scoring_function == _DEFAULT_SCORING
+        else None
+    )
 
-    with TemporaryDirectory() as tmpdir:
-        # supply #include <ScoringFunction.h> in frontend_agglomerate.h
-        tmp_path = Path(tmpdir)
-        scoredef = f"typedef {scoring_function} ScoringFunctionType;"
-        (tmp_path / "ScoringFunction.h").write_text(scoredef)
+    if _precompiled_name is not None:
+        import importlib
 
-        # supply #include <Queue.h> in frontend_agglomerate.h
-        queue_src = "template<typename T, typename S> using QueueType = " + (
-            "PriorityQueue<T, S>;"
-            if discretize_queue == 0
-            else f"BinQueue<T, S, {discretize_queue}>;"
-        )
-        (tmp_path / "Queue.h").write_text(queue_src)
+        module = importlib.import_module(f"waterz.{_precompiled_name}")
+    else:
+        import witty
 
-        # compile module
-        module = witty.compile_cython(
-            (HERE / "agglomerate.pyx").read_text(),
-            source_files=[str(HERE / "frontend_agglomerate.cpp")],
-            extra_link_args=["-std=c++11"],
-            extra_compile_args=["-std=c++11", "-w"],
-            include_dirs=[
+        with TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            scoredef = f"typedef {scoring_function} ScoringFunctionType;"
+            (tmp_path / "ScoringFunction.h").write_text(scoredef)
+
+            queue_src = "template<typename T, typename S> using QueueType = " + (
+                "PriorityQueue<T, S>;"
+                if discretize_queue == 0
+                else f"BinQueue<T, S, {discretize_queue}>;"
+            )
+            (tmp_path / "Queue.h").write_text(queue_src)
+
+            _include_dirs = [
                 str(HERE),
                 tmpdir,
                 str(HERE / "backend"),
                 np.get_include(),
                 "/opt/homebrew/include",
-            ],
-            language="c++",
-            quiet=True,
-            force_rebuild=force_rebuild,
-        )
+            ]
+            _compile_args = ["-std=c++11", "-w"]
+
+            def _build_frontend(cache_dir: Path) -> list[str]:
+                import subprocess
+
+                obj_path = cache_dir / "frontend_agglomerate.o"
+                cpp_path = HERE / "frontend_agglomerate.cpp"
+                if not obj_path.exists() or obj_path.stat().st_mtime < cpp_path.stat().st_mtime:
+                    cmd = [
+                        "c++", *_compile_args,
+                        *[f"-I{d}" for d in _include_dirs],
+                        "-fPIC", "-c", str(cpp_path), "-o", str(obj_path),
+                    ]
+                    subprocess.check_call(cmd)
+                return [str(obj_path)]
+
+            module = witty.compile_cython(
+                (HERE / "agglomerate.pyx").read_text(),
+                source_files=[str(HERE / "frontend_agglomerate.cpp")],
+                build_extra_objects=_build_frontend,
+                extra_link_args=["-std=c++11"],
+                extra_compile_args=_compile_args,
+                include_dirs=_include_dirs,
+                language="c++",
+                quiet=True,
+                force_rebuild=force_rebuild,
+            )
 
     # call compiled function
+    if input_rag is not None or input_rag_metadata is not None:
+        return module.agglomerate_rag(
+            rag=input_rag,
+            rag_metadata=input_rag_metadata,
+            thresholds=thresholds,
+            fragments=fragments,
+        )
+
     return module.agglomerate(
-        affs,
-        thresholds,
-        gt,
-        fragments,
-        aff_threshold_low,
-        aff_threshold_high,
-        return_merge_history,
-        return_region_graph,
+        affs=affs,
+        thresholds=thresholds,
+        gt=gt,
+        fragments=fragments,
+        semantic=semantic,
+        segconstraint=segconstraint,
+        aff_threshold_low=aff_threshold_low,
+        aff_threshold_high=aff_threshold_high,
+        semantic_aff_threshold=semantic_aff_threshold,
+        semantic_size_threshold=semantic_size_threshold,
+        semantic_signal_ratio=semantic_signal_ratio,
+        semantic_taint_labels=semantic_taint_labels,
+        semantic_taint_threshold=semantic_taint_threshold,
+        size_heuristic_aff_threshold=size_heuristic_aff_threshold,
+        size_heuristic_small_threshold=size_heuristic_small_threshold,
+        size_heuristic_large_threshold=size_heuristic_large_threshold,
+        return_merge_history=return_merge_history,
+        return_region_graph=return_region_graph,
+        return_region_graph_metadata=return_region_graph_metadata,
     )

@@ -1,6 +1,8 @@
 #ifndef C_EVALUATE_H
 #define C_EVALUATE_H
 
+#include <cstdint>
+
 #include "backend/types.hpp"
 
 typedef uint64_t SegID;

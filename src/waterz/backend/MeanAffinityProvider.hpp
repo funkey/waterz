@@ -27,6 +27,12 @@ public:
 		_numValues[e]++;
 	}
 
+	template <typename EdgeIdType, typename ScoreType>
+	inline void addEdge(EdgeIdType e, ScoreType affinity, double value) {
+		_meanAffinities[e] = affinity;
+		_numValues[e] = value;
+	}
+
 	inline bool notifyEdgeMerge(EdgeIdType from, EdgeIdType to) {
 
 		size_t fromN = _numValues[from];
@@ -44,6 +50,10 @@ public:
 	inline ValueType operator[](EdgeIdType e) const {
 
 		return _meanAffinities[e];
+	}
+
+	inline double getEdgeMetadata(EdgeIdType e) const {
+		return _numValues[e];
 	}
 
 private:

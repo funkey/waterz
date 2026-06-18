@@ -10,8 +10,88 @@
 #include "backend/basic_watershed.hpp"
 #include "backend/region_graph.hpp"
 
+#include "backend/SemanticConstraintProvider.hpp"
+#include "backend/SemanticTaintConstraintProvider.hpp"
+#include "backend/SegConstraintProvider.hpp"
+#include "backend/SizeHeuristicConstraintProvider.hpp"
+
 std::map<int, WaterzContext*> WaterzContext::_contexts;
 int WaterzContext::_nextId = 0;
+
+std::vector<ScoredEdge> getRegionGraph(WaterzState& state);
+std::vector<double> getRegionGraphMeta(WaterzState& state);
+
+WaterzState
+initialize_with_rag(
+		const std::vector<ScoredEdge>& rag,
+		const std::vector<double>& rag_metadata,
+		SegID* segmentation_data,
+		std::size_t     width,
+		std::size_t     height,
+		std::size_t     depth) {
+
+	SegID maxId = 0;
+	for (const auto& edge : rag) {
+		maxId = std::max(std::max(edge.u, edge.v), maxId);
+	}
+
+	std::size_t numNodes = maxId + 1;
+	std::cout << "creating region graph for " << numNodes << " nodes" << std::endl;
+
+	std::shared_ptr<RegionGraphType> regionGraph(
+			new RegionGraphType(numNodes)
+	);
+
+	std::cout << "creating statistics provider" << std::endl;
+	std::shared_ptr<StatisticsProviderType> statisticsProvider(
+			new StatisticsProviderType(*regionGraph)
+	);
+
+	std::cout << "initializing region graph..." << std::endl;
+
+	initialize_with_region_graph<SegID>(
+			*statisticsProvider,
+			*regionGraph,
+			rag,
+			rag_metadata);
+
+	std::shared_ptr<ScoringFunctionType> scoringFunction(
+			new ScoringFunctionType(*regionGraph, *statisticsProvider)
+	);
+
+	std::shared_ptr<RegionMergingType> regionMerging(
+			new RegionMergingType(*regionGraph)
+	);
+
+	
+	std::shared_ptr<vector<ConstraintProvider*>> dummy_constraints(
+		new vector<ConstraintProvider*>()
+	);
+
+	WaterzContext* context = WaterzContext::createNew();
+	context->regionGraph        = regionGraph;
+	context->regionMerging      = regionMerging;
+	context->scoringFunction    = scoringFunction;
+	context->statisticsProvider = statisticsProvider;
+	// context->segmentation       = segmentation_data;
+	context->constraints 		= dummy_constraints;
+
+	if (segmentation_data != NULL) {
+		// wrap data (no copy)
+		volume_ref_ptr<SegID> segmentation(
+				new volume_ref<SegID>(
+						segmentation_data,
+						boost::extents[width][height][depth]
+				)
+		);
+		context->segmentation = segmentation;
+	}
+
+	WaterzState initial_state;
+	initial_state.context = context->id;
+
+	return initial_state;
+}
 
 WaterzState
 initialize(
@@ -21,8 +101,18 @@ initialize(
 		const AffValue* affinity_data,
 		SegID*          segmentation_data,
 		const GtID*     ground_truth_data,
+		const SemValue* semantic_data,
+		const SegID*    segconstraint_data,
 		AffValue        affThresholdLow,
 		AffValue        affThresholdHigh,
+		AffValue        semantic_aff_threshold,
+		size_t          semantic_size_threshold,
+		AffValue        semantic_signal_ratio,
+		const std::vector<SemValue>& semantic_taint_labels,
+		AffValue        semantic_taint_threshold,
+		AffValue        size_heuristic_aff_threshold,
+		size_t          size_heuristic_small_threshold,
+		size_t          size_heuristic_large_threshold,
 		bool            findFragments) {
 
 	std::size_t num_voxels = width*height*depth;
@@ -44,15 +134,10 @@ initialize(
 	counts_t<std::size_t> sizes;
 
 	if (findFragments) {
-
 		std::cout << "performing initial watershed segmentation..." << std::endl;
-
 		watershed(affinities, affThresholdLow, affThresholdHigh, *segmentation, sizes);
-
 	} else {
-
 		std::cout << "counting regions and sizes..." << std::endl;
-
 		std::size_t maxId = *std::max_element(segmentation_data, segmentation_data + num_voxels);
 		sizes.resize(maxId + 1);
 		for (std::size_t i = 0; i < num_voxels; i++)
@@ -88,12 +173,58 @@ initialize(
 			new RegionMergingType(*regionGraph)
 	);
 
+	std::shared_ptr<vector<ConstraintProvider*>> constraints(
+		new vector<ConstraintProvider*>()
+	);
+
+	if (semantic_data != NULL) {
+		std::cout << "getting semantic information..." << std::endl;
+		constraints->push_back(
+			new SemanticConstraintProvider<RegionGraphType, SemValue, SegID>(
+				semantic_data, segmentation_data, num_voxels,
+				semantic_aff_threshold,
+				semantic_size_threshold,
+				semantic_signal_ratio
+			)
+		);
+	}
+
+	if (semantic_data != NULL && !semantic_taint_labels.empty()) {
+		std::cout << "getting semantic taint constraint information..." << std::endl;
+		constraints->push_back(
+			new SemanticTaintConstraintProvider<RegionGraphType, SemValue, SegID>(
+				semantic_data, segmentation_data, num_voxels,
+				semantic_taint_labels,
+				semantic_taint_threshold
+			)
+		);
+	}
+
+	if (segconstraint_data != NULL) {
+		std::cout << "getting seg constraint information..." << std::endl;
+		constraints->push_back(
+			new SegConstraintProvider<RegionGraphType, SegID>(
+				segconstraint_data, segmentation_data, num_voxels
+			)
+		);
+	}
+
+	constraints->push_back(
+		new SizeHeuristicConstraintProvider<RegionGraphType, SegID>(
+			sizes,
+			size_heuristic_aff_threshold,
+			size_heuristic_small_threshold,
+			size_heuristic_large_threshold
+		)
+	);
+
 	WaterzContext* context = WaterzContext::createNew();
 	context->regionGraph        = regionGraph;
 	context->regionMerging      = regionMerging;
 	context->scoringFunction    = scoringFunction;
 	context->statisticsProvider = statisticsProvider;
 	context->segmentation       = segmentation;
+	context->constraints 		= constraints;
 
 	WaterzState initial_state;
 	initial_state.context = context->id;
@@ -129,10 +260,12 @@ mergeUntil(
 	std::size_t merged = context->regionMerging->mergeUntil(
 			*context->scoringFunction,
 			*context->statisticsProvider,
+			*context->constraints,
 			threshold,
-			mergeHistoryVisitor);
+			mergeHistoryVisitor
+		);
 
-	if (merged) {
+	if (merged && context->segmentation) {
 
 		std::cout << "extracting segmentation" << std::endl;
 
@@ -162,6 +295,16 @@ getRegionGraph(WaterzState& state) {
 	std::shared_ptr<ScoringFunctionType> scoringFunction = context->scoringFunction;
 
 	return regionMerging->extractRegionGraph<ScoredEdge>(*scoringFunction);
+}
+
+std::vector<double>
+getRegionGraphMeta(WaterzState& state) {
+
+	WaterzContext* context = WaterzContext::get(state.context);
+	std::shared_ptr<RegionMergingType> regionMerging = context->regionMerging;
+	std::shared_ptr<ScoringFunctionType> scoringFunction = context->scoringFunction;
+
+	return regionMerging->extractRegionGraphMeta<double>(*scoringFunction, *(context->statisticsProvider));
 }
 
 void

@@ -1,6 +1,7 @@
 #ifndef C_FRONTEND_H
 #define C_FRONTEND_H
 
+#include <cstdint>
 #include <vector>
 
 #include "backend/IterativeRegionMerging.hpp"
@@ -11,10 +12,13 @@
 #include "backend/PriorityQueue.hpp"
 #include "backend/HistogramQuantileProvider.hpp"
 #include "backend/VectorQuantileProvider.hpp"
+#include "backend/ConstraintProvider.hpp"
 #include "evaluate.hpp"
+
 
 typedef uint64_t SegID;
 typedef uint32_t GtID;
+typedef uint8_t SemValue;
 typedef float AffValue;
 typedef float ScoreValue;
 typedef RegionGraph<SegID> RegionGraphType;
@@ -43,6 +47,8 @@ struct Merge {
 };
 
 struct ScoredEdge {
+
+	ScoredEdge() {};
 
 	ScoredEdge(SegID u_, SegID v_, ScoreValue score_) :
 		u(u_),
@@ -99,6 +105,7 @@ public:
 	std::shared_ptr<RegionMergingType> regionMerging;
 	std::shared_ptr<ScoringFunctionType> scoringFunction;
 	std::shared_ptr<StatisticsProviderType> statisticsProvider;
+	std::shared_ptr<vector<ConstraintProvider*>> constraints;
 	volume_ref_ptr<SegID> segmentation;
 	volume_const_ref_ptr<GtID> groundtruth;
 
@@ -147,16 +154,36 @@ WaterzState initialize(
 		size_t          depth,
 		const AffValue* affinity_data,
 		SegID*          segmentation_data,
-		const GtID*     groundtruth_data = NULL,
-		AffValue        affThresholdLow  = 0.0001,
-		AffValue        affThresholdHigh = 0.9999,
-		bool            findFragments = true);
+		const GtID*     groundtruth_data,
+		const SemValue* semantic_data,
+		const SegID*    segconstraint_data,
+		AffValue        affThresholdLow,
+		AffValue        affThresholdHigh,
+		AffValue        semantic_aff_threshold,
+		size_t          semantic_size_threshold,
+		AffValue        semantic_signal_ratio,
+		const std::vector<SemValue>& semantic_taint_labels,
+		AffValue        semantic_taint_threshold,
+		AffValue        size_heuristic_aff_threshold,
+		size_t          size_heuristic_small_threshold,
+		size_t          size_heuristic_large_threshold,
+		bool            findFragments
+	);
+
+WaterzState initialize_with_rag(
+		const std::vector<ScoredEdge>& rag,
+		const std::vector<double>& rag_metadata,
+		SegID*          segmentation_data,
+		std::size_t     width,
+		std::size_t     height,
+		std::size_t     depth);
 
 std::vector<Merge> mergeUntil(
 		WaterzState& state,
 		float        threshold);
 
 std::vector<ScoredEdge> getRegionGraph(WaterzState& state);
+std::vector<double> getRegionGraphMeta(WaterzState& state);
 
 void free(WaterzState& state);
 

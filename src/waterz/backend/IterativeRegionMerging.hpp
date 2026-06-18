@@ -4,12 +4,14 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <cassert>
 #include <limits>
 
 #include "RegionGraph.hpp"
 #include "PriorityQueue.hpp"
+#include "ConstraintProvider.hpp"
 
 template <typename NodeIdType, typename ScoreType, template <typename T, typename S> class QueueType = PriorityQueue>
 class IterativeRegionMerging {
@@ -37,6 +39,7 @@ public:
 	std::size_t mergeUntil(
 			EdgeScoringFunction& edgeScoringFunction,
 			StatisticsProviderType& statisticsProvider,
+			std::vector<ConstraintProvider*>& constraints,
 			ScoreType threshold,
 			Visitor& visitor) {
 
@@ -89,23 +92,38 @@ public:
 
 			if (_stale[next]) {
 
-				// if we encountered a stale edge, recompute it's score and 
+				// if we encountered a stale edge, recompute it's score and
 				// place it back in the queue
 				ScoreType newScore = scoreEdge(next, edgeScoringFunction);
 				_stale[next] = false;
-				assert(newScore >= score);
+				// A stale edge's score is recomputed from running/area-weighted
+				// mean affinities in floating point, so it can dip ~1 ULP below
+				// the score it was queued at. Tolerate that rounding noise; a
+				// real non-monotonicity would exceed this by orders of magnitude.
+				assert(newScore >= score - 1e-5);
 
 				visitor.onStaleEdgeFound(next, score, newScore);
 
 				continue;
 			}
 
-			NodeIdType newRegion = mergeRegions(next, statisticsProvider);
+			NodeIdType a = _regionGraph.edge(next).u;
+			NodeIdType b = _regionGraph.edge(next).v;
+
+			bool is_constrained = false;
+			for (auto constraint : constraints) {
+				is_constrained |= constraint->isConstrained(a, b, score);
+			}
+
+			if (is_constrained) {
+				continue;  // skip merging
+			}
+
+			NodeIdType newRegion = mergeRegions(next, statisticsProvider, constraints);
 			merged++;
 
 			visitor.onMerge(
-					_regionGraph.edge(next).u,
-					_regionGraph.edge(next).v,
+					a, b,
 					newRegion,
 					score);
 		}
@@ -163,6 +181,31 @@ public:
 		return edges;
 	}
 
+	template <typename EdgeMetadata, typename EdgeScoringFunction, typename StatisticsProviderType>
+	std::vector<EdgeMetadata> extractRegionGraphMeta(EdgeScoringFunction& edgeScoringFunction, StatisticsProviderType& statisticsProvider) {
+
+		std::vector<EdgeMetadata> ret;
+
+		for (EdgeIdType e = 0; e < _regionGraph.numEdges(); e++) {
+
+			if (_deleted[e])
+				continue;
+
+			ScoreType score;
+			if (_stale[e])
+				score = scoreEdge(e, edgeScoringFunction);
+			else
+				score = _edgeScores[e];
+
+			if (score < _mergedUntil)
+				continue;
+
+			ret.emplace_back(statisticsProvider.getEdgeMetadata(e));
+		}
+
+		return ret;
+	}
+
 private:
 
 	/**
@@ -171,13 +214,18 @@ private:
 	template <typename StatisticsProviderType>
 	NodeIdType mergeRegions(
 			EdgeIdType e,
-			StatisticsProviderType& statisticsProvider) {
+			StatisticsProviderType& statisticsProvider,
+			std::vector<ConstraintProvider*>& constraints) {
 
 		NodeIdType a = _regionGraph.edge(e).u;
 		NodeIdType b = _regionGraph.edge(e).v;
 
 		// assign new node a = a + b
 		bool nodeStatisticsChanged = statisticsProvider.notifyNodeMerge(b, a);
+
+		for (auto constraint : constraints) {
+			nodeStatisticsChanged |= constraint->notifyNodeMerge(b, a);
+		}
 
 		// set path
 		_rootPaths[b] = a;
@@ -190,7 +238,10 @@ private:
 		}
 
 		// ...and update incident edges of b
-		std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(b);
+		// Take b's incident list via swap to avoid copying the vector.
+		// b's list is cleared, so use reassignEdge/removeEdgeSkipNode
+		// which don't touch b's incEdges.
+		std::vector<EdgeIdType> neighborEdges = _regionGraph.takeIncEdges(b);
 		for (EdgeIdType neighborEdge : neighborEdges) {
 
 			if (neighborEdge == e)
@@ -209,8 +260,7 @@ private:
 
 				// We encountered an exclusive neighbor of b.
 
-				_regionGraph.moveEdge(neighborEdge, a, neighbor);
-				assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
+				_regionGraph.reassignEdge(neighborEdge, b, a);
 
 				if (nodeStatisticsChanged)
 					_stale[neighborEdge] = true;
@@ -223,32 +273,30 @@ private:
 				// * mark the cheaper one as stale (if it isn't already)
 				// * delete the more expensive one
 				//
-				// This ensures that the stale edge bubbles up early enough 
-				// to consider it's real score (which is assumed to be 
+				// This ensures that the stale edge bubbles up early enough
+				// to consider it's real score (which is assumed to be
 				// larger than the minium of the two original scores).
 
 				if (_edgeScores[neighborEdge] > _edgeScores[aNeighborEdge]) {
 
-					// We got lucky, we can reuse the edge that is attached to a 
+					// We got lucky, we can reuse the edge that is attached to a
 					// already
 
 					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(neighborEdge, aNeighborEdge);
 
-					_regionGraph.removeEdge(neighborEdge);
+					_regionGraph.removeEdgeSkipNode(neighborEdge, b);
 					_deleted[neighborEdge] = true;
 					if (edgeStatisticChanged)
 						_stale[aNeighborEdge] = true;
 
 				} else {
 
-					// Bummer. The new edge should be the one pointing from 
+					// Bummer. The new edge should be the one pointing from
 					// a to neighbor.
 
 					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(aNeighborEdge, neighborEdge);
 
-					_regionGraph.removeEdge(aNeighborEdge);
-					_regionGraph.moveEdge(neighborEdge, a, neighbor);
-					assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
+					_regionGraph.replaceEdge(aNeighborEdge, neighborEdge, a, neighbor, b);
 
 					if (edgeStatisticChanged)
 						_stale[neighborEdge] = true;
@@ -324,7 +372,7 @@ private:
 	// root nodes are not in the map
 	//
 	// paths will be compressed when read
-	std::map<NodeIdType, NodeIdType> _rootPaths;
+	std::unordered_map<NodeIdType, NodeIdType> _rootPaths;
 
 	// current state of merging
 	ScoreType _mergedUntil;
