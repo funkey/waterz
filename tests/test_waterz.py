@@ -91,6 +91,18 @@ def test_scoring_functions_are_not_mixed_up() -> None:
     assert histories == [_merge_history(1000, scoring_function=f) for f in functions]
 
 
+def test_fragments_are_written_to() -> None:
+    affs, fragments = _four_fragments()
+    segmentation = next(wz.agglomerate(affs, [1.0], fragments=fragments))
+    assert segmentation is fragments
+    assert np.all(fragments == 1)
+
+    _, fragments = _four_fragments()
+    fragments.flags.writeable = False
+    with pytest.raises(ValueError, match="read-only"):
+        next(wz.agglomerate(affs, [1.0], fragments=fragments))
+
+
 def test_mean_affinity_scores() -> None:
     affs, fragments = _four_fragments()
     boundary: dict[tuple[int, int], list[float]] = {}
