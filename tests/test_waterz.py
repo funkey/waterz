@@ -129,15 +129,17 @@ def test_discretized_queue() -> None:
     assert coarse != exact
 
 
-def test_discretized_queue_has_to_be_an_integer() -> None:
-    with pytest.raises(TypeError):
-        _merge_history(discretize_queue=0.5)
+@requires_jit
+def test_discretized_queue_as_string() -> None:
+    # as read from a configuration file
+    assert _merge_history(discretize_queue="4") == _merge_history(discretize_queue=4)
 
 
+@requires_jit
 def test_multiline_scoring_function() -> None:
     multiline = """
-        OneMinus<
-            MeanAffinity<RegionGraphType, ScoreValue>
+        OneMinus<  // one minus...
+            MeanAffinity<RegionGraphType, ScoreValue>  // ...the mean
         >
     """
     assert _merge_history(scoring_function=multiline) == _merge_history()
@@ -145,21 +147,35 @@ def test_multiline_scoring_function() -> None:
 
 def test_evaluate_invalid_input() -> None:
     seg = np.arange(1, 28, dtype=np.uint64).reshape(3, 3, 3)
-    with pytest.raises(TypeError):
-        wz.evaluate(seg.tolist(), seg)
+    for not_an_array in (seg.tolist(), seg.tobytes(), memoryview(seg), None):
+        with pytest.raises(TypeError, match="incorrect type"):
+            wz.evaluate(not_an_array, seg)
+        with pytest.raises(TypeError, match="incorrect type"):
+            wz.evaluate(seg, not_an_array)
     with pytest.raises(ValueError, match="dimensions"):
         wz.evaluate(seg[0], seg[0])
     with pytest.raises(ValueError, match="dtype"):
         wz.evaluate(seg.astype(np.int64), seg)
     with pytest.raises(AssertionError, match="Shapes"):
         wz.evaluate(seg, seg[:2])
-    # not contiguous
-    assert wz.evaluate(seg[:, ::2], seg[:, ::2])["rand_split"] == 1.0
+
+
+def test_evaluate_not_contiguous() -> None:
+    rng = np.random.default_rng(0)
+    seg = rng.integers(1, 5, size=(6, 8, 10), dtype=np.uint64)
+    gt = rng.integers(1, 5, size=(6, 8, 10), dtype=np.uint64)
+    for view in (np.s_[:, ::2], np.s_[::-1], np.s_[:, :, 1::3]):
+        expected = wz.evaluate(seg[view].copy(), gt[view].copy())
+        assert expected != wz.evaluate(seg[view].copy(), seg[view].copy())
+        assert wz.evaluate(seg[view], gt[view]) == expected
+        assert wz.evaluate(seg[view], gt[view].copy()) == expected
+        assert wz.evaluate(seg[view].copy(), gt[view]) == expected
+    assert wz.evaluate(np.asfortranarray(seg), np.asfortranarray(gt)) == wz.evaluate(seg, gt)
 
 
 def test_build_wrapper() -> None:
     source = build_wrapper(HIST_QUANT, 256)
-    assert f"#define WATERZ_SCORING_FUNCTION {HIST_QUANT}\n" in source
-    assert "#define WATERZ_QUEUE_BINS 256\n" in source
-    assert source != build_wrapper(HIST_QUANT, 0)
+    assert f"typedef {HIST_QUANT} ScoringFunctionType;\n" in source
+    assert "using QueueType = BinQueue<T, S, 256>;\n" in source
+    assert "using QueueType = PriorityQueue<T, S>;\n" in build_wrapper(HIST_QUANT, 0)
     assert source != build_wrapper(MEAN, 256)

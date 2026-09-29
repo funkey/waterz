@@ -12,7 +12,6 @@ from ._codegen import (
     env_enabled,
     include_dirs,
     module_name,
-    normalize,
 )
 
 if TYPE_CHECKING:
@@ -27,10 +26,10 @@ def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType |
     """Return the ahead-of-time compiled module, or None if not shipped."""
     if env_enabled("WATERZ_NO_PREBUILT"):
         return None
-    name = module_name(scoring_function, discretize_queue)
     try:
+        name = module_name(scoring_function, discretize_queue)
         return importlib.import_module(f"{PREBUILT_PACKAGE}.{name}")
-    except ImportError:
+    except (ImportError, TypeError):  # not shipped, or not an integer queue
         return None
 
 
@@ -52,7 +51,7 @@ def _jit_compile(
         ) from e
 
     return witty.compile_cython(
-        build_wrapper(normalize(scoring_function), discretize_queue),
+        build_wrapper(scoring_function, discretize_queue),
         depends_on=depends(),
         extra_compile_args=COMPILE_ARGS,
         include_dirs=include_dirs(),
