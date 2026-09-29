@@ -68,7 +68,8 @@ def extensions() -> list[Extension]:
         "depends": codegen.depends(),
         "include_dirs": codegen.include_dirs(),
         "language": "c++",
-        "extra_compile_args": codegen.COMPILE_ARGS,
+        # no debug info: it makes for linux wheels of ten times the size
+        "extra_compile_args": [*codegen.COMPILE_ARGS, *([] if WIN else ["-g0"])],
         "define_macros": [*codegen.DEFINE_MACROS, ("Py_LIMITED_API", ABI3_HEX)],
         "py_limited_api": True,
     }
