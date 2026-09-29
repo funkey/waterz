@@ -7,6 +7,7 @@ the package is importable), so it must only depend on the standard library.
 from __future__ import annotations
 
 import hashlib
+import operator
 import os
 import re
 import sys
@@ -82,18 +83,19 @@ def normalize(scoring_function: str) -> str:
 def module_name(scoring_function: str, discretize_queue: int) -> str:
     """Deterministic module name for the given scoring function and queue."""
     function = normalize(scoring_function)
-    key = f"{function}|{int(discretize_queue)}"
-    digest = hashlib.sha256(key.encode()).hexdigest()[:8]
+    bins = operator.index(discretize_queue)
+    digest = hashlib.sha256(f"{function}|{bins}".encode()).hexdigest()[:8]
     readable = function.replace("RegionGraphType", "").replace("ScoreValue", "")
     readable = re.sub(r"\W+", "_", readable).strip("_")[:60]
-    return f"{readable}_q{int(discretize_queue)}_{digest}"
+    return f"{readable}_q{bins}_{digest}"
 
 
 def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
     """Render the pyx wrapper for the given scoring function and queue."""
     source = TEMPLATE.read_text()
-    source = source.replace("@SCORING_FUNCTION@", scoring_function)
-    return source.replace("@QUEUE_BINS@", str(int(discretize_queue)))
+    # on a single line, as it ends up in a #define
+    source = source.replace("@SCORING_FUNCTION@", " ".join(scoring_function.split()))
+    return source.replace("@QUEUE_BINS@", str(operator.index(discretize_queue)))
 
 
 def depends() -> list[str]:

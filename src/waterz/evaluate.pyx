@@ -1,7 +1,9 @@
 from libc.stdint cimport uint64_t
 import numpy as np
 
-def evaluate(segmentation, gt):
+def evaluate(
+        const uint64_t[:, :, :] segmentation,
+        const uint64_t[:, :, :] gt):
 
     for d in range(3):
         assert segmentation.shape[d] == gt.shape[d], (
@@ -9,18 +11,12 @@ def evaluate(segmentation, gt):
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
-    if not segmentation.flags['C_CONTIGUOUS']:
+    if not segmentation.is_c_contig():
         print("Creating memory-contiguous segmentation arrray (avoid this by passing C_CONTIGUOUS arrays)")
         segmentation = np.ascontiguousarray(segmentation)
-    if gt is not None and not gt.flags['C_CONTIGUOUS']:
+    if not gt.is_c_contig():
         print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
         gt = np.ascontiguousarray(gt)
-
-    return __evaluate(segmentation, gt)
-
-def __evaluate(
-        const uint64_t[:, :, ::1] segmentation,
-        const uint64_t[:, :, ::1] gt):
 
     return compare_arrays(
         segmentation.shape[0], segmentation.shape[1], segmentation.shape[2],

@@ -109,8 +109,9 @@ def test_mean_affinity_scores() -> None:
 
 @requires_jit
 def test_max_size_scores() -> None:
-    # fragment sizes are 256, 256, 128, and 384: the smallest pair merges first
-    assert _merge_history(scoring_function=MAX_SIZE, threshold=1000)[0] == (1, 2, 256)
+    # fragment sizes are 256, 256, 128, and 384
+    # the first merge is between two of the three smallest
+    assert _merge_history(scoring_function=MAX_SIZE, threshold=1000)[0][2] == 256
 
 
 @requires_jit
@@ -119,10 +120,41 @@ def test_size_ratio_compiles() -> None:
     assert len(_merge_history(scoring_function=SIZE_RATIO)) == 3
 
 
+@requires_jit
 def test_discretized_queue() -> None:
     exact = _merge_history(scoring_function=MEAN, discretize_queue=0)
-    binned = _merge_history(scoring_function=MEAN, discretize_queue=256)
-    assert [m[:2] for m in binned] == [m[:2] for m in exact]
+    fine = _merge_history(scoring_function=MEAN, discretize_queue=256)
+    coarse = _merge_history(scoring_function=MEAN, discretize_queue=4)
+    assert fine == exact
+    assert coarse != exact
+
+
+def test_discretized_queue_has_to_be_an_integer() -> None:
+    with pytest.raises(TypeError):
+        _merge_history(discretize_queue=0.5)
+
+
+def test_multiline_scoring_function() -> None:
+    multiline = """
+        OneMinus<
+            MeanAffinity<RegionGraphType, ScoreValue>
+        >
+    """
+    assert _merge_history(scoring_function=multiline) == _merge_history()
+
+
+def test_evaluate_invalid_input() -> None:
+    seg = np.arange(1, 28, dtype=np.uint64).reshape(3, 3, 3)
+    with pytest.raises(TypeError):
+        wz.evaluate(seg.tolist(), seg)
+    with pytest.raises(ValueError, match="dimensions"):
+        wz.evaluate(seg[0], seg[0])
+    with pytest.raises(ValueError, match="dtype"):
+        wz.evaluate(seg.astype(np.int64), seg)
+    with pytest.raises(AssertionError, match="Shapes"):
+        wz.evaluate(seg, seg[:2])
+    # not contiguous
+    assert wz.evaluate(seg[:, ::2], seg[:, ::2])["rand_split"] == 1.0
 
 
 def test_build_wrapper() -> None:
