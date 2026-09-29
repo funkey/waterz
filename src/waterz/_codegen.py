@@ -37,7 +37,12 @@ def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
 
 def depends() -> list[str]:
     """C++ files included by the wrapper, a change in which requires a rebuild."""
-    frontend = sorted(HERE.glob("frontend_agglomerate*"))
+    names = (
+        "frontend_agglomerate_types.h",
+        "frontend_agglomerate.h",
+        "frontend_agglomerate.cpp",
+    )
+    frontend = [HERE / name for name in names]
     return [str(f) for f in (*frontend, *sorted((HERE / "backend").glob("*.hpp")))]
 
 
