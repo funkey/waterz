@@ -6,6 +6,7 @@ the package is importable), so it must only depend on the standard library.
 
 from __future__ import annotations
 
+import operator
 import os
 import sys
 from pathlib import Path
@@ -22,8 +23,9 @@ DEFINE_MACROS = [("NOMINMAX", None)] if WIN else []
 def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
     """Render the pyx wrapper for the given scoring function and queue."""
     source = TEMPLATE.read_text()
-    source = source.replace("@SCORING_FUNCTION@", scoring_function)
-    return source.replace("@QUEUE_BINS@", str(int(discretize_queue)))
+    # on a single line, as it ends up in a #define
+    source = source.replace("@SCORING_FUNCTION@", " ".join(scoring_function.split()))
+    return source.replace("@QUEUE_BINS@", str(operator.index(discretize_queue)))
 
 
 def depends() -> list[str]:
