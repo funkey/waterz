@@ -95,13 +95,13 @@ def __initialize(
         aff_threshold_high,
         find_fragments)
 
-# The scoring function and the queue are C++ template parameters, filled in by
-# `_codegen.build_wrapper`. The frontend is included here, such that each
-# variant is a single translation unit.
+# The scoring function and the queue are C++ template parameters, declared in
+# place of the placeholder by `_codegen.build_wrapper`. The frontend is included
+# here, such that each variant is a single translation unit.
 cdef extern from *:
     """
-    #define WATERZ_SCORING_FUNCTION @SCORING_FUNCTION@
-    #define WATERZ_QUEUE_BINS @QUEUE_BINS@
+    #include "frontend_agglomerate_types.h"
+    @PARAMETERS@
     #include "frontend_agglomerate.h"
     #include "frontend_agglomerate.cpp"
     """

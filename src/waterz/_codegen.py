@@ -6,7 +6,6 @@ the package is importable), so it must only depend on the standard library.
 
 from __future__ import annotations
 
-import operator
 import os
 import sys
 from pathlib import Path
@@ -22,15 +21,23 @@ DEFINE_MACROS = [("NOMINMAX", None)] if WIN else []
 
 def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
     """Render the pyx wrapper for the given scoring function and queue."""
-    source = TEMPLATE.read_text()
-    # on a single line, as it ends up in a #define
-    source = source.replace("@SCORING_FUNCTION@", " ".join(scoring_function.split()))
-    return source.replace("@QUEUE_BINS@", str(operator.index(discretize_queue)))
+    queue = (
+        "PriorityQueue<T, S>"
+        if discretize_queue == 0
+        else f"BinQueue<T, S, {discretize_queue}>"
+    )
+    parameters = (
+        f"typedef {scoring_function} ScoringFunctionType;\n"
+        f"template<typename T, typename S> using QueueType = {queue};"
+    )
+    # it ends up in a string in the pyx, which has to evaluate to just that
+    parameters = parameters.replace("\\", "\\\\").replace('"', '\\"')
+    return TEMPLATE.read_text().replace("@PARAMETERS@", parameters)
 
 
 def depends() -> list[str]:
     """C++ files included by the wrapper, a change in which requires a rebuild."""
-    frontend = [HERE / "frontend_agglomerate.h", HERE / "frontend_agglomerate.cpp"]
+    frontend = sorted(HERE.glob("frontend_agglomerate*"))
     return [str(f) for f in (*frontend, *sorted((HERE / "backend").glob("*.hpp")))]
 
 

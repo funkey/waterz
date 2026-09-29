@@ -1,37 +1,10 @@
 #ifndef C_FRONTEND_H
 #define C_FRONTEND_H
 
-#include <vector>
+#include "frontend_agglomerate_types.h"
 
-#include "backend/IterativeRegionMerging.hpp"
-#include "backend/MergeFunctions.hpp"
-#include "backend/Operators.hpp"
-#include "backend/types.hpp"
-#include "backend/BinQueue.hpp"
-#include "backend/PriorityQueue.hpp"
-#include "backend/HistogramQuantileProvider.hpp"
-#include "backend/VectorQuantileProvider.hpp"
-#include "evaluate.hpp"
-
-typedef uint64_t SegID;
-typedef uint32_t GtID;
-typedef float AffValue;
-typedef float ScoreValue;
-typedef RegionGraph<SegID> RegionGraphType;
-
-// the scoring function and the queue are compile-time parameters
-#if !defined(WATERZ_SCORING_FUNCTION) || !defined(WATERZ_QUEUE_BINS)
-#error "WATERZ_SCORING_FUNCTION and WATERZ_QUEUE_BINS have to be defined"
-#endif
-
-typedef WATERZ_SCORING_FUNCTION ScoringFunctionType;
-
-#if WATERZ_QUEUE_BINS == 0
-template<typename T, typename S> using QueueType = PriorityQueue<T, S>;
-#else
-template<typename T, typename S> using QueueType = BinQueue<T, S, WATERZ_QUEUE_BINS>;
-#endif
-
+// ScoringFunctionType and QueueType are compile-time parameters, they have to
+// be declared before this header is included (see agglomerate.pyx)
 typedef typename ScoringFunctionType::StatisticsProviderType StatisticsProviderType;
 typedef IterativeRegionMerging<SegID, ScoreValue, QueueType> RegionMergingType;
 
