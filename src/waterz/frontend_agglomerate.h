@@ -19,9 +19,18 @@ typedef float AffValue;
 typedef float ScoreValue;
 typedef RegionGraph<SegID> RegionGraphType;
 
-// to be created by __init__.py
-#include <ScoringFunction.h>
-#include <Queue.h>
+// the scoring function and the queue are compile-time parameters
+#if !defined(WATERZ_SCORING_FUNCTION) || !defined(WATERZ_QUEUE_BINS)
+#error "WATERZ_SCORING_FUNCTION and WATERZ_QUEUE_BINS have to be defined"
+#endif
+
+typedef WATERZ_SCORING_FUNCTION ScoringFunctionType;
+
+#if WATERZ_QUEUE_BINS == 0
+template<typename T, typename S> using QueueType = PriorityQueue<T, S>;
+#else
+template<typename T, typename S> using QueueType = BinQueue<T, S, WATERZ_QUEUE_BINS>;
+#endif
 
 typedef typename ScoringFunctionType::StatisticsProviderType StatisticsProviderType;
 typedef IterativeRegionMerging<SegID, ScoreValue, QueueType> RegionMergingType;

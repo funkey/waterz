@@ -1,11 +1,5 @@
 [build-system]
-requires = [
-	"setuptools>=69",
-	"wheel",
-	"Cython>=0.29",
-	"numpy>=1.20",
-	"setuptools-scm",
-]
+requires = ["setuptools>=69", "Cython>=3.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -15,20 +9,23 @@ name = "waterz"
 dynamic = ["version"]
 description = "Simple watershed and agglomeration for affinity graphs."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Jan Funke" }, { name = "Jingpeng Wu" }]
 classifiers = [
 	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.9",
-	"Programming Language :: Python :: 3.10",
 	"Programming Language :: Python :: 3.11",
 	"Programming Language :: Python :: 3.12",
 	"Programming Language :: Python :: 3.13",
+	"Programming Language :: Python :: 3.14",
 	"Operating System :: OS Independent",
 	"Typing :: Typed",
 ]
-dependencies = ["numpy>=1.20", "witty[cython]>=0.3.1"]
+dependencies = [
+	"numpy>=1.20",
+	"witty[cython]>=0.3.2",
+	"typing_extensions>=4.5.0", # witty<=0.3.2 imports it without declaring it
+]
 
 [project.urls]
 Homepage = "https://github.com/funkey/waterz"
@@ -59,13 +56,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-waterz = ["*.pyx", "*.hpp", "*.h", "backend/*.hpp"]
+waterz = ["*.pyx", "*.pyi", "*.h", "frontend_*.cpp", "backend/*.hpp", "py.typed"]
 
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 95
-target-version = "py39"
+target-version = "py311"
 src = ["src", "tests"]
 fix = true
 unsafe-fixes = true

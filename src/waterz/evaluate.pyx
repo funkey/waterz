@@ -1,15 +1,11 @@
 from libc.stdint cimport uint64_t
 import numpy as np
-cimport numpy as np
 
-def evaluate(
-        np.ndarray[uint64_t, ndim=3] segmentation,
-        np.ndarray[uint64_t, ndim=3] gt):
+def evaluate(segmentation, gt):
 
     for d in range(3):
         assert segmentation.shape[d] == gt.shape[d], (
             "Shapes in dim %d do not match"%d)
-    shape = segmentation.shape
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
@@ -20,18 +16,16 @@ def evaluate(
         print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
         gt = np.ascontiguousarray(gt)
 
-    cdef uint64_t* segmentation_data
-    cdef uint64_t* gt_data
+    return __evaluate(segmentation, gt)
 
-    segmentation_data = &segmentation[0, 0, 0]
-    gt_data = &gt[0, 0, 0]
+def __evaluate(
+        const uint64_t[:, :, ::1] segmentation,
+        const uint64_t[:, :, ::1] gt):
 
-    scores = compare_arrays(
-        shape[0], shape[1], shape[2],
-        gt_data,
-        segmentation_data)
-
-    return scores
+    return compare_arrays(
+        segmentation.shape[0], segmentation.shape[1], segmentation.shape[2],
+        &gt[0, 0, 0],
+        &segmentation[0, 0, 0])
 
 cdef extern from "frontend_evaluate.h":
 

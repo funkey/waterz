@@ -3,6 +3,7 @@ from math import isclose
 import numpy as np
 
 import waterz as wz
+from waterz._codegen import build_wrapper
 
 
 def test_evaluate() -> None:
@@ -43,3 +44,83 @@ def test_agglomerate() -> None:
         # just what I observed... from my random test
         # change when better test data is available
         assert np.all(segmentation == 1)
+
+
+MEAN = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
+HIST_QUANT = "OneMinus<HistogramQuantileAffinity<RegionGraphType, 50, ScoreValue, 256, false>>"
+MAX_SIZE = "MaxSize<RegionGraphType>"
+SIZE_RATIO = (
+    "Divide<Subtract<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>, "
+    "Add<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>>"
+)
+
+
+def _four_fragments() -> tuple[np.ndarray, np.ndarray]:
+    fragments = np.zeros((4, 16, 16), np.uint64)
+    fragments[:, :8, :8] = 1
+    fragments[:, :8, 8:] = 2
+    fragments[:, 8:, :4] = 3
+    fragments[:, 8:, 4:] = 4
+    rng = np.random.default_rng(0)
+    affs = rng.random((3, 4, 16, 16), dtype=np.float32) * 0.5 + 0.3
+    return affs, fragments
+
+
+def _merge_history(threshold: float = 1.0, **kwargs) -> list[tuple[int, int, float]]:
+    affs, fragments = _four_fragments()
+    _, history = next(
+        wz.agglomerate(
+            affs, [threshold], fragments=fragments, return_merge_history=True, **kwargs
+        )
+    )
+    return [(m["a"], m["b"], m["score"]) for m in history]
+
+
+def test_scoring_functions_are_not_mixed_up() -> None:
+    functions = (MEAN, HIST_QUANT, MAX_SIZE)
+    histories = [_merge_history(1000, scoring_function=f) for f in functions]
+    assert histories[0] != histories[1]
+    assert histories[0] != histories[2]
+    assert histories[1] != histories[2]
+    # and again, now that all of them are compiled
+    assert histories == [_merge_history(1000, scoring_function=f) for f in functions]
+
+
+def test_mean_affinity_scores() -> None:
+    affs, fragments = _four_fragments()
+    boundary: dict[tuple[int, int], list[float]] = {}
+    for d in range(3):
+        a = np.moveaxis(fragments, d, 0)[1:]
+        b = np.moveaxis(fragments, d, 0)[:-1]
+        aff = np.moveaxis(affs[d], d, 0)[1:]
+        for u, v, value in zip(a[a != b], b[a != b], aff[a != b], strict=True):
+            boundary.setdefault((min(u, v), max(u, v)), []).append(value)
+    expected = min(1 - np.mean(values) for values in boundary.values())
+
+    u, v, score = _merge_history(scoring_function=MEAN)[0]
+    assert isclose(score, expected, rel_tol=1e-5)
+    assert isclose(1 - np.mean(boundary[min(u, v), max(u, v)]), expected)
+
+
+def test_max_size_scores() -> None:
+    # fragment sizes are 256, 256, 128, and 384: the smallest pair merges first
+    assert _merge_history(scoring_function=MAX_SIZE, threshold=1000)[0] == (1, 2, 256)
+
+
+def test_size_ratio_compiles() -> None:
+    # dividing sizes used to fail to compile (std::abs of an unsigned type)
+    assert len(_merge_history(scoring_function=SIZE_RATIO)) == 3
+
+
+def test_discretized_queue() -> None:
+    exact = _merge_history(scoring_function=MEAN, discretize_queue=0)
+    binned = _merge_history(scoring_function=MEAN, discretize_queue=256)
+    assert [m[:2] for m in binned] == [m[:2] for m in exact]
+
+
+def test_build_wrapper() -> None:
+    source = build_wrapper(HIST_QUANT, 256)
+    assert f"#define WATERZ_SCORING_FUNCTION {HIST_QUANT}\n" in source
+    assert "#define WATERZ_QUEUE_BINS 256\n" in source
+    assert source != build_wrapper(HIST_QUANT, 0)
+    assert source != build_wrapper(MEAN, 256)

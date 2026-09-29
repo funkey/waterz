@@ -2,7 +2,6 @@ from libcpp.vector cimport vector
 from libc.stdint cimport uint64_t, uint32_t
 from libcpp cimport bool
 import numpy as np
-cimport numpy as np
 
 def agglomerate(
         affs,
@@ -71,16 +70,16 @@ def agglomerate(
     free(state)
 
 def __initialize(
-        np.ndarray[np.float32_t, ndim=4] affs,
-        np.ndarray[uint64_t, ndim=3]     segmentation,
-        np.ndarray[uint32_t, ndim=3]     gt = None,
+        const float[:, :, :, ::1] affs,
+        uint64_t[:, :, ::1]       segmentation,
+        const uint32_t[:, :, ::1] gt = None,
         aff_threshold_low  = 0.0001,
         aff_threshold_high = 0.9999,
         find_fragments = True):
 
-    cdef float*    aff_data
-    cdef uint64_t* segmentation_data
-    cdef uint32_t* gt_data = NULL
+    cdef const float*    aff_data
+    cdef uint64_t*       segmentation_data
+    cdef const uint32_t* gt_data = NULL
 
     aff_data = &affs[0,0,0,0]
     segmentation_data = &segmentation[0,0,0]
@@ -96,7 +95,16 @@ def __initialize(
         aff_threshold_high,
         find_fragments)
 
-cdef extern from "frontend_agglomerate.h":
+# The scoring function and the queue are C++ template parameters, filled in by
+# `_codegen.build_wrapper`. The frontend is included here, such that each
+# variant is a single translation unit.
+cdef extern from *:
+    """
+    #define WATERZ_SCORING_FUNCTION @SCORING_FUNCTION@
+    #define WATERZ_QUEUE_BINS @QUEUE_BINS@
+    #include "frontend_agglomerate.h"
+    #include "frontend_agglomerate.cpp"
+    """
 
     struct Metrics:
         double voi_split

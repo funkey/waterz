@@ -3,7 +3,7 @@ from __future__ import annotations
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("psygnal")
+    __version__ = version("waterz")
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "uninstalled"
 
