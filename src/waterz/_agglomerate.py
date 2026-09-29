@@ -1,14 +1,66 @@
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING
 
-from ._codegen import COMPILE_ARGS, DEFINE_MACROS, build_wrapper, depends, include_dirs
+from ._codegen import (
+    COMPILE_ARGS,
+    DEFINE_MACROS,
+    PREBUILT_PACKAGE,
+    build_wrapper,
+    depends,
+    env_enabled,
+    include_dirs,
+    module_name,
+    normalize,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from types import ModuleType
 
     import numpy as np
     from numpy.typing import NDArray
+
+
+def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType | None:
+    """Return the ahead-of-time compiled module, or None if not shipped."""
+    if env_enabled("WATERZ_NO_PREBUILT"):
+        return None
+    name = module_name(scoring_function, discretize_queue)
+    try:
+        return importlib.import_module(f"{PREBUILT_PACKAGE}.{name}")
+    except ImportError:
+        return None
+
+
+def _jit_compile(
+    scoring_function: str, discretize_queue: int, force_rebuild: bool
+) -> ModuleType:
+    """Compile a module with the system C++ compiler.
+
+    Only reached for variants that are not shipped prebuilt. witty is imported
+    here, since it is an optional dependency.
+    """
+    try:
+        import witty
+    except ImportError as e:
+        raise ImportError(
+            f"The scoring function {scoring_function!r} with "
+            f"discretize_queue={discretize_queue} is not precompiled, and compiling "
+            "it requires `pip install waterz[jit]`, a C++ compiler, and boost."
+        ) from e
+
+    return witty.compile_cython(
+        build_wrapper(normalize(scoring_function), discretize_queue),
+        depends_on=depends(),
+        extra_compile_args=COMPILE_ARGS,
+        include_dirs=include_dirs(),
+        define_macros=DEFINE_MACROS,
+        language="c++",
+        quiet=True,
+        force_rebuild=force_rebuild,
+    )
 
 
 def agglomerate(
@@ -69,7 +121,9 @@ def agglomerate(
 
         scoring_function: string, default 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
 
-            A C++ type string specifying the edge scoring function to use. See
+            A C++ type string specifying the edge scoring function to use.
+            Common ones are precompiled, others are compiled on first use (which
+            requires `pip install waterz[jit]`, a C++ compiler, and boost). See
 
                 https://github.com/funkey/waterz/blob/master/src/waterz/backend/MergeFunctions.hpp
 
@@ -86,7 +140,8 @@ def agglomerate(
 
         force_rebuild: bool
 
-            Force the rebuild of the module. Only needed for development.
+            Force the rebuild of the module, even if it is precompiled. Only
+            needed for development.
 
     Returns
     -------
@@ -139,18 +194,11 @@ def agglomerate(
             affs, range(100,10000,100), gt, return_merge_history = True):
             # ...
     """
-    import witty
-
-    module = witty.compile_cython(
-        build_wrapper(scoring_function, discretize_queue),
-        depends_on=depends(),
-        extra_compile_args=COMPILE_ARGS,
-        include_dirs=include_dirs(),
-        define_macros=DEFINE_MACROS,
-        language="c++",
-        quiet=True,
-        force_rebuild=force_rebuild,
-    )
+    module = None
+    if not force_rebuild:
+        module = _load_prebuilt(scoring_function, discretize_queue)
+    if module is None:
+        module = _jit_compile(scoring_function, discretize_queue, force_rebuild)
 
     # call compiled function
     return module.agglomerate(

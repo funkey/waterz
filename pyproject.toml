@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "Cython>=3.0", "setuptools-scm"]
+requires = ["setuptools>=77", "Cython>=3.1", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -21,8 +21,11 @@ classifiers = [
 	"Operating System :: OS Independent",
 	"Typing :: Typed",
 ]
-dependencies = [
-	"numpy>=1.20",
+dependencies = ["numpy>=1.20"]
+
+[project.optional-dependencies]
+# to compile scoring functions that are not precompiled
+jit = [
 	"witty[cython]>=0.3.2",
 	"typing_extensions>=4.5.0", # witty<=0.3.2 imports it without declaring it
 ]
@@ -33,15 +36,15 @@ Repository = "https://github.com/funkey/waterz"
 Issues = "https://github.com/funkey/waterz/issues"
 
 [dependency-groups]
+test = ["pytest", "pytest-cov"]
 dev = [
-	"pytest",
+	{ include-group = "test" },
+	"waterz[jit]",
 	"coveralls",
-	"pytest-cov",
 	"pre-commit",
 	"ruff",
-	"numpy",
 	"ipython>=8.18.1",
-	"Cython>=0.29",
+	"Cython>=3.1",
 	"setuptools",
 ]
 
@@ -58,6 +61,26 @@ where = ["src"]
 [tool.setuptools.package-data]
 waterz = ["*.pyx", "*.pyi", "*.h", "frontend_*.cpp", "backend/*.hpp", "py.typed"]
 
+
+[tool.cibuildwheel]
+# a single abi3 build per platform covers every supported CPython
+build = "cp311-*"
+skip = ["*-musllinux_*", "*-win32", "*_i686"]
+# never let a wheel silently ship without the precompiled variants
+environment = { WATERZ_REQUIRE_PREBUILT = "1" }
+test-groups = ["test"]
+# witty is not installed: nothing that is tested here needs a compiler
+test-command = "pytest {project}/tests -q"
+
+[tool.cibuildwheel.linux]
+before-all = "dnf install -y boost-devel"
+
+[tool.cibuildwheel.macos]
+before-all = "brew install boost"
+
+[tool.cibuildwheel.windows]
+before-all = "vcpkg install boost-multi-array:x64-windows"
+environment = { WATERZ_REQUIRE_PREBUILT = "1", BOOST_ROOT = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows" }
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [master, main]
+    tags: [v*]
   pull_request:
   workflow_dispatch:
 
@@ -42,5 +43,105 @@ jobs:
           vcpkg install boost-multi-array:x64-windows
           echo "BOOST_ROOT=$VCPKG_INSTALLATION_ROOT/installed/x64-windows" >> "$GITHUB_ENV"
 
+      # --no-editable so we test the built wheel, precompiled variants and all,
+      # and with the dev group for `waterz[jit]`, to test the JIT path too
+      - name: Install as a built wheel
+        run: uv sync --no-editable
+        env:
+          WATERZ_REQUIRE_PREBUILT: "1"
       - name: Run tests
-        run: uv run pytest -v
+        run: uv run --no-sync pytest -v
+        env:
+          WATERZ_REQUIRE_PREBUILT: "1"
+
+  # One abi3 wheel per platform, covering every supported CPython.
+  build-wheels:
+    name: Wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest # manylinux x86_64
+          - ubuntu-24.04-arm # manylinux aarch64
+          - windows-latest # win_amd64
+          - macos-15-intel # macOS x86_64
+          - macos-latest # macOS arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # setuptools-scm needs the tags
+      - uses: pypa/cibuildwheel@v4.1.1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
+    name: Sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # The only job that checks the stable-ABI claim (one cp311 wheel running on
+  # every supported CPython), and that nothing but numpy is needed to run it.
+  test-abi3-wheel:
+    name: abi3 wheel on ${{ matrix.os }} py${{ matrix.python-version }}
+    needs: build-wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      WATERZ_REQUIRE_PREBUILT: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install the built wheel
+        shell: bash
+        run: |
+          uv venv
+          uv pip install wheelhouse/*.whl pytest
+      - name: Test it
+        run: uv run --no-sync pytest tests -v
+
+  deploy:
+    name: Deploy
+    needs: [test, build-wheels, build-sdist, test-abi3-wheel]
+    if: success() && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # trusted publishing
+      contents: write # github release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: "./dist/*"
