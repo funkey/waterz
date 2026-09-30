@@ -24,13 +24,27 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+def _bins(discretize_queue: object) -> int | None:
+    """The queue as an integer, if it is one (also as a string, or a float)."""
+    try:
+        return operator.index(discretize_queue)
+    except TypeError:
+        pass
+    if isinstance(discretize_queue, str):
+        return int(discretize_queue) if discretize_queue.strip().isdecimal() else None
+    try:
+        as_float = float(discretize_queue)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return int(as_float) if as_float.is_integer() else None
+
+
 def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType | None:
     """Return the ahead-of-time compiled module, or None if not shipped."""
     if env_enabled("WATERZ_NO_PREBUILT"):
         return None
-    try:
-        bins = operator.index(discretize_queue)
-    except TypeError:  # not an integer: not a variant that is shipped
+    bins = _bins(discretize_queue)
+    if bins is None:  # not an integer: not a variant that is shipped
         return None
     name = f"{PREBUILT_PACKAGE}.{module_name(scoring_function, bins)}"
     try:

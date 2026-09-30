@@ -121,6 +121,21 @@ def test_unlisted_variants_are_not_prebuilt(
     assert _load_prebuilt(scoring_function, discretize_queue) is None
 
 
+@requires_prebuilt
+@pytest.mark.parametrize(
+    "discretize_queue", ["256", " 256 ", 256.0, np.float32(256), np.uint8(0), "0"]
+)
+def test_queue_as_string_or_float_is_prebuilt(discretize_queue: object) -> None:
+    module = _load_prebuilt(MEAN, discretize_queue)
+    assert module is not None
+    assert module.DISCRETIZE_QUEUE == str(int(float(discretize_queue)))
+
+
+@pytest.mark.parametrize("discretize_queue", [0.5, "0x100", "256.0", "", None, [256]])
+def test_queue_that_is_not_an_integer_is_not_prebuilt(discretize_queue: object) -> None:
+    assert _load_prebuilt(MEAN, discretize_queue) is None
+
+
 def test_no_prebuilt_env_var_forces_jit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WATERZ_NO_PREBUILT", "1")
     assert _load_prebuilt(MEAN, 0) is None
