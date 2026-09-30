@@ -92,6 +92,9 @@ def test_declared_specs_are_shipped_and_never_compile(
         "OneMinus<HistogramQuantileAffinity<RegionGraphType, 50, ScoreValue, 256>>",
         "OneMinus<HistogramQuantileAffinity<RegionGraphType, 85, ScoreValue, 256>>",
         "OneMinus<HistogramQuantileAffinity<RegionGraphType, 25, ScoreValue, 256, false>>",
+        # as spelled by the user who asked for it, whitespace included
+        "Divide<Subtract<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>,"
+        "Add<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>>",
     ],
 )
 def test_common_spellings_are_prebuilt(scoring_function: str) -> None:

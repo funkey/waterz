@@ -47,6 +47,11 @@ def iter_specs() -> Iterator[Spec]:
         for q in QUANTILES
         for init in ("false", "true")
     ]
+    # the relative difference of the sizes, a control that ignores affinities
+    functions += [
+        "Divide<Subtract<MaxSize<RegionGraphType>,MinSize<RegionGraphType>>,"
+        "Add<MaxSize<RegionGraphType>,MinSize<RegionGraphType>>>"
+    ]
     for function in functions:
         for bins in QUEUE_BINS:
             yield Spec(function, bins)

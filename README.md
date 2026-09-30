@@ -35,6 +35,8 @@ module. The following are precompiled, each with `discretize_queue=0` and
   for `Q` in 10, 15, 20, ..., 95 and `B` in `true`, `false` (and
   `OneMinus<HistogramQuantileAffinity<RegionGraphType, Q, ScoreValue, 256>>`,
   which is the same as `B = true`)
+- `Divide<Subtract<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>, Add<MaxSize<RegionGraphType>, MinSize<RegionGraphType>>>`
+  (the relative difference of the region sizes, ignoring the affinities)
 
 Any other combination is compiled the first time it is used, which requires a
 C++ compiler and the boost headers (see below). The compiled module is cached
