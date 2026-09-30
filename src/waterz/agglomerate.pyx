@@ -36,6 +36,8 @@ def agglomerate(
         segmentation = fragments
         find_fragments = False
 
+    if not 0 <= variant < len(SPECS):
+        raise IndexError(f"no variant {variant}, this module has {len(SPECS)}")
     cdef const Variant* v = &VARIANTS[<size_t>variant]
     cdef WaterzState state = __initialize(v, affs, segmentation, gt, aff_threshold_low, aff_threshold_high, find_fragments)
 

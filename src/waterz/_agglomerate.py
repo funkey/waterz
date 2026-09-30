@@ -12,6 +12,7 @@ from ._codegen import (
     depends,
     env_enabled,
     include_dirs,
+    iter_specs,
     normalize,
 )
 
@@ -38,6 +39,13 @@ def _bins(discretize_queue: object) -> int | None:
     return int(as_float) if as_float.is_integer() else None
 
 
+# the variants that are compiled ahead of time, by what is asked for
+_VARIANTS = {
+    (normalize(function), str(queue)): variant
+    for variant, (function, queue) in enumerate(iter_specs())
+}
+
+
 def _load_prebuilt(
     scoring_function: str, discretize_queue: int
 ) -> tuple[ModuleType, int] | None:
@@ -47,18 +55,24 @@ def _load_prebuilt(
     bins = _bins(discretize_queue)
     if bins is None:  # not an integer: not a variant that is shipped
         return None
+    wanted = (normalize(scoring_function), str(bins))
+    variant = _VARIANTS.get(wanted)
+    if variant is None:
+        return None
     try:
         module = importlib.import_module(PREBUILT_MODULE)
     except ModuleNotFoundError as e:
         if e.name != PREBUILT_MODULE:
             raise
         return None
-    # the module records what it was compiled for
-    wanted = (normalize(scoring_function), str(bins))
-    for variant, (function, queue) in enumerate(module.SPECS):
-        if (normalize(function), queue) == wanted:
-            return module, variant
-    return None
+    # the module records what each variant was compiled for
+    function, queue = module.SPECS[variant]
+    if (normalize(function), queue) != wanted:
+        raise RuntimeError(
+            f"variant {variant} of {PREBUILT_MODULE} was compiled for "
+            f"{module.SPECS[variant]}, not for {scoring_function!r}"
+        )
+    return module, variant
 
 
 def _jit_compile(

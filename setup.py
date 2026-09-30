@@ -111,10 +111,12 @@ def extensions() -> list[Extension]:
     modules = [Extension("waterz.evaluate", sources=sources, **common)]
 
     # setuptools packages whatever an earlier build left in `build/lib*`
+    prebuilt = not codegen.env_enabled("WATERZ_NO_PREBUILT")
     for stale in BUILD.glob("lib*/waterz/_prebuilt/*"):
-        if stale.suffix in (".so", ".pyd"):
+        keep = prebuilt and stale.name.split(".")[0] == "agglomerate"
+        if stale.suffix in (".so", ".pyd") and not keep:
             stale.unlink()
-    if not codegen.env_enabled("WATERZ_NO_PREBUILT"):
+    if prebuilt:
         pyx_dir = BUILD / "prebuilt-pyx"
         pyx_dir.mkdir(parents=True, exist_ok=True)
         source = codegen.build_wrapper(codegen.iter_specs())

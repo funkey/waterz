@@ -19,7 +19,14 @@ import pytest
 import waterz as wz
 from waterz import _agglomerate
 from waterz._agglomerate import _load_prebuilt
-from waterz._codegen import PREBUILT_MODULE, Spec, env_enabled, iter_specs, normalize
+from waterz._codegen import (
+    PREBUILT_MODULE,
+    Spec,
+    build_wrapper,
+    env_enabled,
+    iter_specs,
+    normalize,
+)
 
 MEAN = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
 
@@ -154,13 +161,58 @@ def test_prebuilt_module_records_its_parameters() -> None:
 
 
 @requires_prebuilt
-def test_lookup_goes_by_the_recorded_parameters(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prebuilt_module_compiled_for_something_else(monkeypatch: pytest.MonkeyPatch) -> None:
     module, variant = _load_prebuilt(MEAN, 0)
     specs = list(module.SPECS)
     specs[variant] = ("Something<Else>", "0")
     monkeypatch.setattr(module, "SPECS", specs)
-    assert _load_prebuilt(MEAN, 0) is None
-    assert _load_prebuilt("Something<Else>", 0) == (module, variant)
+    with pytest.raises(RuntimeError, match="was compiled for"):
+        _load_prebuilt(MEAN, 0)
+
+
+def test_unlisted_variant_does_not_load_the_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_importing(name: str, *args: object) -> None:
+        raise AssertionError(f"imported {name}")
+
+    monkeypatch.setattr(_agglomerate.importlib, "import_module", no_importing)
+    assert _load_prebuilt("OneMinus<MaxAffinity<RegionGraphType, ScoreValue>>", 0) is None
+    assert _load_prebuilt(MEAN, 7) is None
+
+
+def test_rendered_variants_line_up() -> None:
+    """The table, the namespaces, and SPECS come from the same list, in order."""
+    specs = list(iter_specs())
+    source = build_wrapper(specs)
+    for variant, spec in enumerate(specs):
+        block = source[source.index(f"namespace v{variant} {{") :]
+        assert f"typedef {spec.scoring_function} ScoringFunctionType;" in block.split("}")[0]
+        assert f"{{v{variant}::initialize, v{variant}::mergeUntil" in source
+    assert source.count("namespace v") == len(specs)
+    rendered = eval(source[source.index("SPECS = ") + 8 :].split("\n")[0])
+    assert rendered == [(f, str(q)) for f, q in specs]
+
+
+@requires_prebuilt
+def test_variant_index_is_checked() -> None:
+    module, _ = _load_prebuilt(MEAN, 0)
+    affs = np.zeros((3, 2, 2, 2), np.float32)
+    for variant in (len(module.SPECS), -1, 10**9):
+        with pytest.raises((IndexError, OverflowError)):
+            next(module.agglomerate(variant, affs, [0.5], None, None, 0, 1, False, False))
+
+
+@requires_jit
+@requires_prebuilt
+@pytest.mark.skipif(
+    not env_enabled("WATERZ_TEST_ALL_VARIANTS"), reason="set WATERZ_TEST_ALL_VARIANTS=1"
+)
+@pytest.mark.parametrize(
+    "spec", list(iter_specs()), ids=lambda s: f"{s.scoring_function}|{s.discretize_queue}"
+)
+def test_every_prebuilt_variant_agrees_with_jit(
+    spec: Spec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    test_prebuilt_and_jit_agree(spec, monkeypatch)
 
 
 @requires_prebuilt
