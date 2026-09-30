@@ -23,11 +23,8 @@ classifiers = [
 	"Operating System :: OS Independent",
 	"Typing :: Typed",
 ]
-dependencies = ["numpy>=1.20"]
-
-[project.optional-dependencies]
-# to compile scoring functions that are not precompiled
-jit = ["witty[cython]>=0.3.3"]
+# witty is only imported to compile scoring functions that are not precompiled
+dependencies = ["numpy>=1.20", "witty[cython]>=0.3.3"]
 
 [project.urls]
 Homepage = "https://github.com/funkey/waterz"
@@ -38,7 +35,6 @@ Issues = "https://github.com/funkey/waterz/issues"
 test = ["pytest", "pytest-cov"]
 dev = [
 	{ include-group = "test" },
-	"waterz[jit]",
 	"coveralls",
 	"pre-commit",
 	"ruff",
@@ -66,7 +62,6 @@ waterz = ["*.pyx", "*.pyi", "*.h", "frontend_*.cpp", "backend/*.hpp", "py.typed"
 build = "cp311-*"
 skip = ["*-musllinux_*", "*-win32", "*_i686"]
 test-groups = ["test"]
-# witty is not installed: nothing that is tested here needs a compiler
 test-command = "pytest {project}/tests -q"
 # never let a wheel silently ship without the precompiled variants
 test-environment = { WATERZ_REQUIRE_PREBUILT = "1" }

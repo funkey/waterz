@@ -8,6 +8,8 @@ regression we want to catch.
 
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 from importlib.util import find_spec
 
@@ -17,7 +19,14 @@ import pytest
 import waterz as wz
 from waterz import _agglomerate
 from waterz._agglomerate import _load_prebuilt
-from waterz._codegen import Spec, env_enabled, iter_specs, module_name, normalize
+from waterz._codegen import (
+    PREBUILT_PACKAGE,
+    Spec,
+    env_enabled,
+    iter_specs,
+    module_name,
+    normalize,
+)
 
 MEAN = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
 
@@ -28,7 +37,7 @@ requires_prebuilt = pytest.mark.skipif(
 requires_jit = pytest.mark.skipif(find_spec("witty") is None, reason="needs waterz[jit]")
 
 
-def _agglomerate_all(spec: Spec) -> list[tuple]:
+def _agglomerate_all(spec: Spec, **kwargs: object) -> list[tuple]:
     rng = np.random.default_rng(0)
     affs = rng.random((3, 6, 20, 20), dtype=np.float32)
     gt = rng.integers(1, 5, size=(6, 20, 20)).astype(np.uint32)
@@ -44,6 +53,7 @@ def _agglomerate_all(spec: Spec) -> list[tuple]:
             return_region_graph=True,
             scoring_function=spec.scoring_function,
             discretize_queue=spec.discretize_queue,
+            **kwargs,
         )
     ]
 
@@ -118,8 +128,74 @@ def test_no_prebuilt_env_var_forces_jit(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_missing_witty_is_explained(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "witty", None)
-    with pytest.raises(ImportError, match=r"waterz\[jit\]"):
+    with pytest.raises(ImportError, match="discretize_queue=7 requires witty"):
         wz.agglomerate(np.zeros((3, 2, 2, 2), np.float32), [0.5], discretize_queue=7)
+
+
+@requires_prebuilt
+def test_prebuilt_modules_record_their_parameters() -> None:
+    for spec in iter_specs():
+        module = _load_prebuilt(*spec)
+        assert module is not None
+        assert module.SCORING_FUNCTION == spec.scoring_function
+        assert module.DISCRETIZE_QUEUE == str(spec.discretize_queue)
+
+
+@requires_prebuilt
+def test_prebuilt_module_compiled_for_something_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_prebuilt(MEAN, 0)
+    monkeypatch.setattr(module, "DISCRETIZE_QUEUE", "256")
+    with pytest.raises(RuntimeError, match="was compiled for"):
+        _load_prebuilt(MEAN, 0)
+
+
+@requires_prebuilt
+def test_broken_prebuilt_module_is_not_hidden(monkeypatch: pytest.MonkeyPatch) -> None:
+    name = f"{PREBUILT_PACKAGE}.{module_name(MEAN, 0)}"
+    monkeypatch.delitem(sys.modules, name, raising=False)
+
+    def broken_import(name: str, *args: object) -> None:
+        raise ModuleNotFoundError("No module named 'something_else'", name="something_else")
+
+    monkeypatch.setattr(_agglomerate.importlib, "import_module", broken_import)
+    with pytest.raises(ModuleNotFoundError, match="something_else"):
+        _load_prebuilt(MEAN, 0)
+
+
+@requires_prebuilt
+def test_prebuilt_does_not_import_witty() -> None:
+    script = (
+        "import sys, numpy as np, waterz\n"
+        "next(waterz.agglomerate(np.random.rand(3, 4, 8, 8).astype(np.float32), [0.5]))\n"
+        "print(sorted(m for m in sys.modules if m.split('.')[0] in "
+        "('witty', 'Cython', 'setuptools', 'distutils', 'nanobind')))\n"
+    )
+    env = {**os.environ, "WATERZ_NO_PREBUILT": "0"}
+    out = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, env=env
+    )
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip().endswith("[]"), out.stdout
+
+
+@requires_jit
+@requires_prebuilt
+def test_force_rebuild_compiles(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple] = []
+    compile_ = _agglomerate._jit_compile
+
+    def recording(*args: object) -> object:
+        calls.append(args)
+        return compile_(*args)
+
+    monkeypatch.setattr(_agglomerate, "_jit_compile", recording)
+    expected = _agglomerate_all(Spec(MEAN, 0))
+    assert calls == []
+    rebuilt = _agglomerate_all(Spec(MEAN, 0), force_rebuild=True)
+    assert calls == [(MEAN, 0, True)]
+    for (seg_a, *rest_a), (seg_b, *rest_b) in zip(expected, rebuilt, strict=True):
+        np.testing.assert_array_equal(seg_a, seg_b)
+        assert rest_a == rest_b
 
 
 @requires_jit

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import operator
 from typing import TYPE_CHECKING
 
 from ._codegen import (
@@ -12,6 +13,7 @@ from ._codegen import (
     env_enabled,
     include_dirs,
     module_name,
+    normalize,
 )
 
 if TYPE_CHECKING:
@@ -27,10 +29,23 @@ def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType |
     if env_enabled("WATERZ_NO_PREBUILT"):
         return None
     try:
-        name = module_name(scoring_function, discretize_queue)
-        return importlib.import_module(f"{PREBUILT_PACKAGE}.{name}")
-    except (ImportError, TypeError):  # not shipped, or not an integer queue
+        bins = operator.index(discretize_queue)
+    except TypeError:  # not an integer: not a variant that is shipped
         return None
+    name = f"{PREBUILT_PACKAGE}.{module_name(scoring_function, bins)}"
+    try:
+        module = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return None
+    # the module records what it was compiled for
+    compiled_for = (normalize(module.SCORING_FUNCTION), module.DISCRETIZE_QUEUE)
+    if compiled_for != (normalize(scoring_function), str(bins)):
+        raise RuntimeError(
+            f"{name} was compiled for {compiled_for}, not for {scoring_function!r}"
+        )
+    return module
 
 
 def _jit_compile(
@@ -39,15 +54,15 @@ def _jit_compile(
     """Compile a module with the system C++ compiler.
 
     Only reached for variants that are not shipped prebuilt. witty is imported
-    here, since it is an optional dependency.
+    here, such that it is not needed for the others.
     """
     try:
         import witty
     except ImportError as e:
         raise ImportError(
-            f"The scoring function {scoring_function!r} with "
-            f"discretize_queue={discretize_queue} is not precompiled, and compiling "
-            "it requires `pip install waterz[jit]`, a C++ compiler, and boost."
+            f"Compiling the agglomeration for {scoring_function!r} with "
+            f"discretize_queue={discretize_queue!r} requires witty (`pip install "
+            "witty`), a C++ compiler, and the boost headers."
         ) from e
 
     return witty.compile_cython(
@@ -122,7 +137,7 @@ def agglomerate(
 
             A C++ type string specifying the edge scoring function to use.
             Common ones are precompiled, others are compiled on first use (which
-            requires `pip install waterz[jit]`, a C++ compiler, and boost). See
+            requires a C++ compiler and the boost headers). See
 
                 https://github.com/funkey/waterz/blob/master/src/waterz/backend/MergeFunctions.hpp
 

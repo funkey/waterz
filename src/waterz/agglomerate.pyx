@@ -95,6 +95,10 @@ def __initialize(
         aff_threshold_high,
         find_fragments)
 
+# The scoring function and the queue this module was compiled for
+SCORING_FUNCTION = @SCORING_FUNCTION@
+DISCRETIZE_QUEUE = @DISCRETIZE_QUEUE@
+
 # The scoring function and the queue are C++ template parameters, declared in
 # place of the placeholder by `_codegen.build_wrapper`. The frontend is included
 # here, such that each variant is a single translation unit.

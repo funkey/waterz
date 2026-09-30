@@ -36,13 +36,13 @@ module. The following are precompiled, each with `discretize_queue=0` and
   `OneMinus<HistogramQuantileAffinity<RegionGraphType, Q, ScoreValue, 256>>`,
   which is the same as `B = true`)
 
-Any other combination is compiled the first time it is used. This requires
+Any other combination is compiled the first time it is used, which requires a
+C++ compiler and the boost headers (see below). The compiled module is cached
+(in the cache directory of [witty](https://github.com/funkelab/witty), which can
+be set with `WITTY_CACHE_DIR`).
 
-```sh
-pip install "waterz[jit]"
-```
-
-a C++ compiler, and the boost headers (see below).
+Set `WATERZ_NO_PREBUILT=1` to compile all scoring functions on first use,
+ignoring the precompiled ones.
 
 ## Install locally
 
@@ -63,7 +63,7 @@ Then
 
 ```sh
 # make and activate env then:
-pip install -e ".[jit]"
+pip install -e .
 ```
 
 or

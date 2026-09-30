@@ -29,7 +29,7 @@ DEFINE_MACROS = [("NOMINMAX", None)] if WIN else []
 PREBUILT_PACKAGE = "waterz._prebuilt"
 
 # Variants compiled ahead of time into binary wheels, everything else is
-# compiled on first use (which requires `waterz[jit]` and a C++ compiler).
+# compiled on first use (which requires a C++ compiler and the boost headers).
 QUANTILES = (10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95)
 QUEUE_BINS = (0, 256)
 
@@ -103,7 +103,13 @@ def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
     )
     # it ends up in a string in the pyx, which has to evaluate to just that
     parameters = parameters.replace("\\", "\\\\").replace('"', '\\"')
-    return TEMPLATE.read_text().replace("@PARAMETERS@", parameters)
+    substitutions = {
+        "PARAMETERS": parameters,
+        # what the module was compiled for, as text
+        "SCORING_FUNCTION": repr(str(scoring_function)),
+        "DISCRETIZE_QUEUE": repr(str(discretize_queue)),
+    }
+    return re.sub(r"@(\w+)@", lambda m: substitutions[m.group(1)], TEMPLATE.read_text())
 
 
 def depends() -> list[str]:
