@@ -133,6 +133,32 @@ def test_size_ratio_compiles() -> None:
 
 
 @requires_jit
+def test_operators_on_sizes_compute_real_numbers() -> None:
+    # fragment sizes are 256, 256, 128, and 384; sizes are whole numbers, but
+    # what is computed from them is not
+    ratio = _merge_history(scoring_function=SIZE_RATIO)
+    assert [m[:2] for m in ratio] == [(1, 2), (1, 4), (1, 3)]
+    assert ratio[0][2] == 0  # (256 - 256) / (256 + 256)
+    assert isclose(ratio[1][2], (384 - 256) / (384 + 256), rel_tol=1e-6)
+    assert isclose(ratio[2][2], (896 - 128) / (896 + 128), rel_tol=1e-6)
+
+    difference = _merge_history(
+        scoring_function="Subtract<MinSize<RegionGraphType>, MaxSize<RegionGraphType>>"
+    )
+    assert difference[0][2] == 128 - 384  # not wrapped around
+    complement = _merge_history(scoring_function="OneMinus<MinSize<RegionGraphType>>")
+    assert complement[0][2] == 1 - 256
+    inverse = _merge_history(
+        scoring_function="Divide<Constant<RegionGraphType, 1>, MaxSize<RegionGraphType>>"
+    )
+    assert isclose(inverse[0][2], 1 / 384, rel_tol=1e-6)
+    # the order of the operands makes no difference
+    assert _merge_history(scoring_function=f"Multiply<MinSize<RegionGraphType>, {MEAN}>") == (
+        _merge_history(scoring_function=f"Multiply<{MEAN}, MinSize<RegionGraphType>>")
+    )
+
+
+@requires_jit
 def test_discretized_queue() -> None:
     exact = _merge_history(scoring_function=MEAN, discretize_queue=0)
     fine = _merge_history(scoring_function=MEAN, discretize_queue=256)

@@ -7,6 +7,21 @@
 #include <type_traits>
 #include "MergeProviders.hpp"
 
+/**
+ * The type operators compute in: the common type of the operands, or double
+ * if that is a whole number. Sizes and areas are whole numbers, but their
+ * difference can be negative, and their ratio is not whole.
+ */
+template <typename T1, typename T2 = T1>
+struct OperatorScoreType {
+
+	typedef typename std::common_type<T1, T2>::type CommonType;
+	typedef typename std::conditional<
+			std::is_integral<CommonType>::value,
+			double,
+			CommonType>::type Type;
+};
+
 template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
 class BinaryOperator : public ScoreFunction1, public ScoreFunction2 {
 
@@ -17,7 +32,9 @@ public:
 			typename ScoreFunction2::StatisticsProviderType>::Value
 		StatisticsProviderType;
 
-	typedef typename ScoreFunction1::ScoreType  ScoreType;
+	typedef typename OperatorScoreType<
+			typename ScoreFunction1::ScoreType,
+			typename ScoreFunction2::ScoreType>::Type ScoreType;
 
 	template <typename RegionGraphType>
 	BinaryOperator(
@@ -43,7 +60,7 @@ class UnaryOperator : public ScoreFunction {
 public:
 
 	typedef typename ScoreFunction::StatisticsProviderType StatisticsProviderType;
-	typedef typename ScoreFunction::ScoreType  ScoreType;
+	typedef typename OperatorScoreType<typename ScoreFunction::ScoreType>::Type ScoreType;
 
 	template <typename RegionGraphType>
 	UnaryOperator(
