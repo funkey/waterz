@@ -77,7 +77,13 @@ def extensions() -> list[Extension]:
     sources = [str(s.relative_to(ROOT)) for s in evaluate_sources]
     modules = [Extension("waterz.evaluate", sources=sources, **common)]
 
-    specs = [] if codegen.env_enabled("WATERZ_NO_PREBUILT") else codegen.iter_specs()
+    specs = [] if codegen.env_enabled("WATERZ_NO_PREBUILT") else list(codegen.iter_specs())
+    names = {codegen.module_name(*spec) for spec in specs}
+    # setuptools packages whatever an earlier build left in `build/lib*`, so
+    # variants that are not built this time have to go
+    for stale in BUILD.glob("lib*/waterz/_prebuilt/*"):
+        if stale.suffix in (".so", ".pyd") and stale.name.split(".")[0] not in names:
+            stale.unlink()
     pyx_dir = BUILD / "prebuilt-pyx"
     pyx_dir.mkdir(parents=True, exist_ok=True)
     for spec in specs:
