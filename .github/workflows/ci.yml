@@ -38,8 +38,11 @@ jobs:
     env:
       WATERZ_NO_PREBUILT: ${{ matrix.prebuilt && '0' || '1' }}
       WATERZ_REQUIRE_PREBUILT: ${{ matrix.prebuilt && '1' || '0' }}
-      # every precompiled variant against its JIT compiled twin (slow)
-      WATERZ_TEST_ALL_VARIANTS: ${{ matrix.prebuilt && matrix.os == 'ubuntu-latest' && '1' || '0' }}
+      # every precompiled variant against its JIT compiled twin: slow, and
+      # a release gate rather than something to check on every push (the two
+      # are rendered from the same source, and a sample of them is compared
+      # in every run)
+      WATERZ_TEST_ALL_VARIANTS: ${{ matrix.prebuilt && matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
 
     steps:
       - uses: actions/checkout@v5
