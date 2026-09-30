@@ -1,28 +1,10 @@
 #ifndef C_FRONTEND_H
 #define C_FRONTEND_H
 
-#include <vector>
+#include "frontend_agglomerate_types.h"
 
-#include "backend/IterativeRegionMerging.hpp"
-#include "backend/MergeFunctions.hpp"
-#include "backend/Operators.hpp"
-#include "backend/types.hpp"
-#include "backend/BinQueue.hpp"
-#include "backend/PriorityQueue.hpp"
-#include "backend/HistogramQuantileProvider.hpp"
-#include "backend/VectorQuantileProvider.hpp"
-#include "evaluate.hpp"
-
-typedef uint64_t SegID;
-typedef uint32_t GtID;
-typedef float AffValue;
-typedef float ScoreValue;
-typedef RegionGraph<SegID> RegionGraphType;
-
-// to be created by __init__.py
-#include <ScoringFunction.h>
-#include <Queue.h>
-
+// ScoringFunctionType and QueueType are compile-time parameters, they have to
+// be declared before this header is included (see agglomerate.pyx)
 typedef typename ScoringFunctionType::StatisticsProviderType StatisticsProviderType;
 typedef IterativeRegionMerging<SegID, ScoreValue, QueueType> RegionMergingType;
 

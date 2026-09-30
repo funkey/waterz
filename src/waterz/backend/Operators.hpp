@@ -4,6 +4,7 @@
 #include <functional>
 #include <limits>
 #include <cmath>
+#include <type_traits>
 #include "MergeProviders.hpp"
 
 template <typename ScoreFunction1, typename ScoreFunction2, template <typename> class Op>
@@ -99,6 +100,13 @@ struct save_divide {
 
 	T operator()(const T& a, const T& b) const {
 
+		return divide(a, b, std::is_floating_point<T>());
+	}
+
+private:
+
+	T divide(const T& a, const T& b, std::true_type) const {
+
 		if (std::abs(b) <= std::numeric_limits<T>::min()) {
 
 			if (std::signbit(a*b)) // a*b < 0
@@ -106,6 +114,15 @@ struct save_divide {
 			else
 				return std::numeric_limits<T>::max();
 		}
+
+		return a/b;
+	}
+
+	// integral types have no std::abs for unsigned, and no negative zero
+	T divide(const T& a, const T& b, std::false_type) const {
+
+		if (b == 0)
+			return std::numeric_limits<T>::max();
 
 		return a/b;
 	}

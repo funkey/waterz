@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-import numpy as np
+from ._codegen import COMPILE_ARGS, DEFINE_MACROS, build_wrapper, depends, include_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
+    import numpy as np
     from numpy.typing import NDArray
-
-HERE = Path(__file__).parent
 
 
 def agglomerate(
@@ -74,11 +71,11 @@ def agglomerate(
 
             A C++ type string specifying the edge scoring function to use. See
 
-                https://github.com/funkey/waterz/blob/master/waterz/backend/MergeFunctions.hpp
+                https://github.com/funkey/waterz/blob/master/src/waterz/backend/MergeFunctions.hpp
 
             for available functions, and
 
-                https://github.com/funkey/waterz/blob/master/waterz/backend/Operators.hpp
+                https://github.com/funkey/waterz/blob/master/src/waterz/backend/Operators.hpp
 
             for operators to combine them.
 
@@ -144,37 +141,16 @@ def agglomerate(
     """
     import witty
 
-    with TemporaryDirectory() as tmpdir:
-        # supply #include <ScoringFunction.h> in frontend_agglomerate.h
-        tmp_path = Path(tmpdir)
-        scoredef = f"typedef {scoring_function} ScoringFunctionType;"
-        (tmp_path / "ScoringFunction.h").write_text(scoredef)
-
-        # supply #include <Queue.h> in frontend_agglomerate.h
-        queue_src = "template<typename T, typename S> using QueueType = " + (
-            "PriorityQueue<T, S>;"
-            if discretize_queue == 0
-            else f"BinQueue<T, S, {discretize_queue}>;"
-        )
-        (tmp_path / "Queue.h").write_text(queue_src)
-
-        # compile module
-        module = witty.compile_cython(
-            (HERE / "agglomerate.pyx").read_text(),
-            source_files=[str(HERE / "frontend_agglomerate.cpp")],
-            extra_link_args=["-std=c++11"],
-            extra_compile_args=["-std=c++11", "-w"],
-            include_dirs=[
-                str(HERE),
-                tmpdir,
-                str(HERE / "backend"),
-                np.get_include(),
-                "/opt/homebrew/include",
-            ],
-            language="c++",
-            quiet=True,
-            force_rebuild=force_rebuild,
-        )
+    module = witty.compile_cython(
+        build_wrapper(scoring_function, discretize_queue),
+        depends_on=depends(),
+        extra_compile_args=COMPILE_ARGS,
+        include_dirs=include_dirs(),
+        define_macros=DEFINE_MACROS,
+        language="c++",
+        quiet=True,
+        force_rebuild=force_rebuild,
+    )
 
     # call compiled function
     return module.agglomerate(

@@ -1,37 +1,35 @@
 from libc.stdint cimport uint64_t
 import numpy as np
-cimport numpy as np
 
-def evaluate(
-        np.ndarray[uint64_t, ndim=3] segmentation,
-        np.ndarray[uint64_t, ndim=3] gt):
+def evaluate(segmentation, gt):
+
+    for name, array in (("segmentation", segmentation), ("gt", gt)):
+        if not isinstance(array, np.ndarray):
+            raise TypeError(
+                f"Argument '{name}' has incorrect type "
+                f"(expected numpy.ndarray, got {type(array).__name__})")
+
+    # checks the number of dimensions and the dtype
+    cdef const uint64_t[:, :, :] segmentation_view = segmentation
+    cdef const uint64_t[:, :, :] gt_view = gt
 
     for d in range(3):
         assert segmentation.shape[d] == gt.shape[d], (
             "Shapes in dim %d do not match"%d)
-    shape = segmentation.shape
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
     if not segmentation.flags['C_CONTIGUOUS']:
         print("Creating memory-contiguous segmentation arrray (avoid this by passing C_CONTIGUOUS arrays)")
-        segmentation = np.ascontiguousarray(segmentation)
-    if gt is not None and not gt.flags['C_CONTIGUOUS']:
+        segmentation_view = np.ascontiguousarray(segmentation)
+    if not gt.flags['C_CONTIGUOUS']:
         print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
-        gt = np.ascontiguousarray(gt)
+        gt_view = np.ascontiguousarray(gt)
 
-    cdef uint64_t* segmentation_data
-    cdef uint64_t* gt_data
-
-    segmentation_data = &segmentation[0, 0, 0]
-    gt_data = &gt[0, 0, 0]
-
-    scores = compare_arrays(
-        shape[0], shape[1], shape[2],
-        gt_data,
-        segmentation_data)
-
-    return scores
+    return compare_arrays(
+        segmentation.shape[0], segmentation.shape[1], segmentation.shape[2],
+        &gt_view[0, 0, 0],
+        &segmentation_view[0, 0, 0])
 
 cdef extern from "frontend_evaluate.h":
 
