@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from setuptools import Extension, setup
@@ -58,11 +59,43 @@ def metadata_only() -> bool:
     return bool(seen) and seen <= METADATA_ONLY
 
 
+def check_boost(include_dirs: list[str]) -> None:
+    """Fail with a readable message if the boost headers cannot be found.
+
+    Without this, a missing boost is a compiler error for every one of the
+    variants, at once.
+    """
+    from setuptools._distutils.ccompiler import new_compiler
+    from setuptools._distutils.sysconfig import customize_compiler
+
+    with tempfile.TemporaryDirectory() as tmp:
+        probe = Path(tmp, "probe.cpp")
+        probe.write_text("#include <boost/multi_array.hpp>\n", encoding="utf-8")
+        compiler = new_compiler()
+        customize_compiler(compiler)
+        try:
+            compiler.compile([str(probe)], output_dir=tmp, include_dirs=include_dirs)
+        except Exception as e:  # no compiler, or no boost: either way
+            raise SystemExit(
+                "waterz needs the boost headers (boost/multi_array.hpp) to build:\n"
+                "  linux:   apt install libboost-dev\n"
+                "  macos:   brew install boost\n"
+                "  windows: vcpkg install boost-multi-array:x64-windows\n"
+                "or point BOOST_ROOT (or BOOST_INCLUDEDIR) to where they are.\n"
+                f"({e})"
+            ) from None
+
+
 def extensions() -> list[Extension]:
     """Declare `evaluate` and every prebuilt agglomerate variant."""
     from Cython.Build import cythonize
 
     codegen = load_codegen()
+    if codegen.env_enabled("WATERZ_NO_PREBUILT") and codegen.env_enabled(
+        "WATERZ_REQUIRE_PREBUILT"
+    ):
+        raise SystemExit("WATERZ_NO_PREBUILT and WATERZ_REQUIRE_PREBUILT are both set")
+    check_boost(codegen.include_dirs())
     common = {
         # the wrappers `#include` these, so they never appear in `sources`
         "depends": codegen.depends(),
@@ -91,8 +124,8 @@ def extensions() -> list[Extension]:
         source = codegen.build_wrapper(*spec)
         path = pyx_dir / f"{name}.pyx"
         # only rewrite when changed, so cythonize can skip unchanged variants
-        if not path.is_file() or path.read_text() != source:
-            path.write_text(source)
+        if not path.is_file() or path.read_text(encoding="utf-8") != source:
+            path.write_text(source, encoding="utf-8")
         module = f"{codegen.PREBUILT_PACKAGE}.{name}"
         modules.append(Extension(module, sources=[str(path)], **common))
 

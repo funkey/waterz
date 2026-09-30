@@ -65,16 +65,18 @@ def normalize(scoring_function: str) -> str:
     Only covers the differences in spelling that are in common use, anything
     else is a different (JIT compiled) variant.
     """
-    function = re.sub(r"\s+", " ", scoring_function.strip())
+    # only the whitespace that C++ knows
+    function = re.sub(r"[ \t\n\r\f\v]+", " ", scoring_function.strip(" \t\n\r\f\v"))
     function = re.sub(r" ?([<>,]) ?", r"\1", function)
     # MeanAffinity is an alias for this
-    function = function.replace(
-        "EdgeStatisticValue<RegionGraphType,MeanAffinityProvider<RegionGraphType,ScoreValue>>",
+    function = re.sub(
+        r"\bEdgeStatisticValue<RegionGraphType,MeanAffinityProvider<RegionGraphType,ScoreValue>>",
         "MeanAffinity<RegionGraphType,ScoreValue>",
+        function,
     )
     # InitWithMax defaults to true
     return re.sub(
-        r"(HistogramQuantileAffinity<RegionGraphType,\d+,ScoreValue,\d+)>",
+        r"(\bHistogramQuantileAffinity<RegionGraphType,\d+,ScoreValue,\d+)>",
         r"\1,true>",
         function,
     )
@@ -109,7 +111,9 @@ def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
         "SCORING_FUNCTION": repr(str(scoring_function)),
         "DISCRETIZE_QUEUE": repr(str(discretize_queue)),
     }
-    return re.sub(r"@(\w+)@", lambda m: substitutions[m.group(1)], TEMPLATE.read_text())
+    return re.sub(
+        r"@(\w+)@", lambda m: substitutions[m.group(1)], TEMPLATE.read_text(encoding="utf-8")
+    )
 
 
 def depends() -> list[str]:
@@ -130,8 +134,10 @@ def _boost_include_dirs() -> list[str]:
         candidates.append(Path(include_dir))
     if root := os.environ.get("BOOST_ROOT"):
         candidates += [Path(root) / "include", Path(root)]
-    # conda environments
-    candidates += [Path(sys.prefix) / "Library" / "include", Path(sys.prefix) / "include"]
+    # conda environments (sys.prefix is a throwaway venv during an isolated build)
+    prefixes = [sys.prefix, sys.base_prefix, os.environ.get("CONDA_PREFIX", "")]
+    for prefix in dict.fromkeys(filter(None, prefixes)):
+        candidates += [Path(prefix) / "Library" / "include", Path(prefix) / "include"]
     if sys.platform == "darwin":
         candidates += [Path("/opt/homebrew/include"), Path("/usr/local/include")]
     return [str(d) for d in candidates if (d / "boost" / "multi_array.hpp").is_file()]

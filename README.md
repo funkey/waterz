@@ -73,7 +73,9 @@ uv sync
 ```
 
 Set `WATERZ_NO_PREBUILT=1` to skip precompiling the scoring functions (all of
-them are then compiled on first use), which makes for a faster build.
+them are then compiled on first use), which makes for a faster build. After
+changing the C++, run `uv sync` (or `pip install -e .`) again: the precompiled
+modules do not notice, the compiled-on-first-use ones do.
 
 ## Usage
 
