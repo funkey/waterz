@@ -4,6 +4,7 @@ from libcpp cimport bool
 import numpy as np
 
 def agglomerate(
+        variant,
         affs,
         thresholds,
         gt=None,
@@ -35,12 +36,13 @@ def agglomerate(
         segmentation = fragments
         find_fragments = False
 
-    cdef WaterzState state = __initialize(affs, segmentation, gt, aff_threshold_low, aff_threshold_high, find_fragments)
+    cdef const Variant* v = &VARIANTS[<size_t>variant]
+    cdef WaterzState state = __initialize(v, affs, segmentation, gt, aff_threshold_low, aff_threshold_high, find_fragments)
 
     thresholds.sort()
     for threshold in thresholds:
 
-        merge_history = mergeUntil(state, threshold)
+        merge_history = v.mergeUntil(state, threshold)
 
         result = (segmentation,)
 
@@ -60,16 +62,17 @@ def agglomerate(
 
         if return_region_graph:
 
-            result += (getRegionGraph(state),)
+            result += (v.getRegionGraph(state),)
 
         if len(result) == 1:
             yield result[0]
         else:
             yield result
 
-    free(state)
+    v.free(state)
 
-def __initialize(
+cdef WaterzState __initialize(
+        const Variant* v,
         const float[:, :, :, ::1] affs,
         uint64_t[:, :, ::1]       segmentation,
         const uint32_t[:, :, ::1] gt = None,
@@ -86,7 +89,7 @@ def __initialize(
     if gt is not None:
         gt_data = &gt[0,0,0]
 
-    return initialize(
+    return v.initialize(
         affs.shape[1], affs.shape[2], affs.shape[3],
         aff_data,
         segmentation_data,
@@ -95,19 +98,31 @@ def __initialize(
         aff_threshold_high,
         find_fragments)
 
-# The scoring function and the queue this module was compiled for
-SCORING_FUNCTION = @SCORING_FUNCTION@
-DISCRETIZE_QUEUE = @DISCRETIZE_QUEUE@
+# The scoring functions and queues this module was compiled for, in the order
+# of the variants
+SPECS = @SPECS@
 
-# The scoring function and the queue are C++ template parameters, declared in
-# place of the placeholder by `_codegen.build_wrapper`. The frontend is included
-# here, such that each variant is a single translation unit.
+# The scoring function and the queue are C++ template parameters: the frontend
+# is included once per variant, in its own namespace, with the parameters
+# declared by `_codegen.build_wrapper` in place of the placeholder.
 cdef extern from *:
     """
     #include "frontend_agglomerate_types.h"
-    @PARAMETERS@
-    #include "frontend_agglomerate.h"
-    #include "frontend_agglomerate.cpp"
+
+    @VARIANTS@
+
+    struct Variant {
+        WaterzState (*initialize)(
+            size_t, size_t, size_t, const float*, uint64_t*, const uint32_t*,
+            float, float, bool);
+        std::vector<Merge> (*mergeUntil)(WaterzState&, float);
+        std::vector<ScoredEdge> (*getRegionGraph)(WaterzState&);
+        void (*free)(WaterzState&);
+    };
+
+    static const Variant VARIANTS[] = {
+    @TABLE@
+    };
     """
 
     struct Metrics:
@@ -131,7 +146,8 @@ cdef extern from *:
         int     context
         Metrics metrics
 
-    WaterzState initialize(
+    struct Variant:
+        WaterzState (*initialize)(
             size_t          width,
             size_t          height,
             size_t          depth,
@@ -140,12 +156,9 @@ cdef extern from *:
             const uint32_t* groundtruth_data,
             float           affThresholdLow,
             float           affThresholdHigh,
-            bool            findFragments);
+            bool            findFragments)
+        vector[Merge] (*mergeUntil)(WaterzState& state, float threshold)
+        vector[ScoredEdge] (*getRegionGraph)(WaterzState& state)
+        void (*free)(WaterzState& state)
 
-    vector[Merge] mergeUntil(
-            WaterzState& state,
-            float        threshold)
-
-    vector[ScoredEdge] getRegionGraph(WaterzState& state)
-
-    void free(WaterzState& state)
+    const Variant VARIANTS[]

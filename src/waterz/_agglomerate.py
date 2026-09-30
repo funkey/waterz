@@ -7,12 +7,11 @@ from typing import TYPE_CHECKING
 from ._codegen import (
     COMPILE_ARGS,
     DEFINE_MACROS,
-    PREBUILT_PACKAGE,
+    PREBUILT_MODULE,
     build_wrapper,
     depends,
     env_enabled,
     include_dirs,
-    module_name,
     normalize,
 )
 
@@ -39,32 +38,32 @@ def _bins(discretize_queue: object) -> int | None:
     return int(as_float) if as_float.is_integer() else None
 
 
-def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType | None:
-    """Return the ahead-of-time compiled module, or None if not shipped."""
+def _load_prebuilt(
+    scoring_function: str, discretize_queue: int
+) -> tuple[ModuleType, int] | None:
+    """Return the module compiled ahead of time and the variant, or None."""
     if env_enabled("WATERZ_NO_PREBUILT"):
         return None
     bins = _bins(discretize_queue)
     if bins is None:  # not an integer: not a variant that is shipped
         return None
-    name = f"{PREBUILT_PACKAGE}.{module_name(scoring_function, bins)}"
     try:
-        module = importlib.import_module(name)
+        module = importlib.import_module(PREBUILT_MODULE)
     except ModuleNotFoundError as e:
-        if e.name != name:
+        if e.name != PREBUILT_MODULE:
             raise
         return None
     # the module records what it was compiled for
-    compiled_for = (normalize(module.SCORING_FUNCTION), module.DISCRETIZE_QUEUE)
-    if compiled_for != (normalize(scoring_function), str(bins)):
-        raise RuntimeError(
-            f"{name} was compiled for {compiled_for}, not for {scoring_function!r}"
-        )
-    return module
+    wanted = (normalize(scoring_function), str(bins))
+    for variant, (function, queue) in enumerate(module.SPECS):
+        if (normalize(function), queue) == wanted:
+            return module, variant
+    return None
 
 
 def _jit_compile(
     scoring_function: str, discretize_queue: int, force_rebuild: bool
-) -> ModuleType:
+) -> tuple[ModuleType, int]:
     """Compile a module with the system C++ compiler.
 
     Only reached for variants that are not shipped prebuilt. witty is imported
@@ -79,8 +78,8 @@ def _jit_compile(
             "witty`), a C++ compiler, and the boost headers."
         ) from e
 
-    return witty.compile_cython(
-        build_wrapper(scoring_function, discretize_queue),
+    module = witty.compile_cython(
+        build_wrapper([(scoring_function, discretize_queue)]),
         depends_on=depends(),
         extra_compile_args=COMPILE_ARGS,
         include_dirs=include_dirs(),
@@ -89,6 +88,7 @@ def _jit_compile(
         quiet=True,
         force_rebuild=force_rebuild,
     )
+    return module, 0
 
 
 def agglomerate(
@@ -222,14 +222,16 @@ def agglomerate(
             affs, range(100,10000,100), gt, return_merge_history = True):
             # ...
     """
-    module = None
+    compiled = None
     if not force_rebuild:
-        module = _load_prebuilt(scoring_function, discretize_queue)
-    if module is None:
-        module = _jit_compile(scoring_function, discretize_queue, force_rebuild)
+        compiled = _load_prebuilt(scoring_function, discretize_queue)
+    if compiled is None:
+        compiled = _jit_compile(scoring_function, discretize_queue, force_rebuild)
+    module, variant = compiled
 
     # call compiled function
     return module.agglomerate(
+        variant,
         affs,
         thresholds,
         gt,

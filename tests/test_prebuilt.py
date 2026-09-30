@@ -19,14 +19,7 @@ import pytest
 import waterz as wz
 from waterz import _agglomerate
 from waterz._agglomerate import _load_prebuilt
-from waterz._codegen import (
-    PREBUILT_PACKAGE,
-    Spec,
-    env_enabled,
-    iter_specs,
-    module_name,
-    normalize,
-)
+from waterz._codegen import PREBUILT_MODULE, Spec, env_enabled, iter_specs, normalize
 
 MEAN = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
 
@@ -70,7 +63,9 @@ def test_prebuilt_modules_were_shipped() -> None:
 
 
 @requires_prebuilt
-@pytest.mark.parametrize("spec", list(iter_specs()), ids=lambda s: module_name(*s))
+@pytest.mark.parametrize(
+    "spec", list(iter_specs()), ids=lambda s: f"{s.scoring_function}|{s.discretize_queue}"
+)
 def test_declared_specs_are_shipped_and_never_compile(
     spec: Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -126,9 +121,10 @@ def test_unlisted_variants_are_not_prebuilt(
     "discretize_queue", ["256", " 256 ", 256.0, np.float32(256), np.uint8(0), "0"]
 )
 def test_queue_as_string_or_float_is_prebuilt(discretize_queue: object) -> None:
-    module = _load_prebuilt(MEAN, discretize_queue)
-    assert module is not None
-    assert module.DISCRETIZE_QUEUE == str(int(float(discretize_queue)))
+    compiled = _load_prebuilt(MEAN, discretize_queue)
+    assert compiled is not None
+    module, variant = compiled
+    assert module.SPECS[variant][1] == str(int(float(discretize_queue)))
 
 
 @pytest.mark.parametrize("discretize_queue", [0.5, "0x100", "256.0", "", None, [256]])
@@ -148,26 +144,28 @@ def test_missing_witty_is_explained(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @requires_prebuilt
-def test_prebuilt_modules_record_their_parameters() -> None:
+def test_prebuilt_module_records_its_parameters() -> None:
     for spec in iter_specs():
-        module = _load_prebuilt(*spec)
-        assert module is not None
-        assert module.SCORING_FUNCTION == spec.scoring_function
-        assert module.DISCRETIZE_QUEUE == str(spec.discretize_queue)
+        compiled = _load_prebuilt(*spec)
+        assert compiled is not None
+        module, variant = compiled
+        assert module.SPECS[variant] == (spec.scoring_function, str(spec.discretize_queue))
+    assert len({_load_prebuilt(*spec)[1] for spec in iter_specs()}) == len(list(iter_specs()))
 
 
 @requires_prebuilt
-def test_prebuilt_module_compiled_for_something_else(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load_prebuilt(MEAN, 0)
-    monkeypatch.setattr(module, "DISCRETIZE_QUEUE", "256")
-    with pytest.raises(RuntimeError, match="was compiled for"):
-        _load_prebuilt(MEAN, 0)
+def test_lookup_goes_by_the_recorded_parameters(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, variant = _load_prebuilt(MEAN, 0)
+    specs = list(module.SPECS)
+    specs[variant] = ("Something<Else>", "0")
+    monkeypatch.setattr(module, "SPECS", specs)
+    assert _load_prebuilt(MEAN, 0) is None
+    assert _load_prebuilt("Something<Else>", 0) == (module, variant)
 
 
 @requires_prebuilt
 def test_broken_prebuilt_module_is_not_hidden(monkeypatch: pytest.MonkeyPatch) -> None:
-    name = f"{PREBUILT_PACKAGE}.{module_name(MEAN, 0)}"
-    monkeypatch.delitem(sys.modules, name, raising=False)
+    monkeypatch.delitem(sys.modules, PREBUILT_MODULE, raising=False)
 
     def broken_import(name: str, *args: object) -> None:
         raise ModuleNotFoundError("No module named 'something_else'", name="something_else")
@@ -226,7 +224,7 @@ def test_force_rebuild_compiles(monkeypatch: pytest.MonkeyPatch) -> None:
             256,
         ),
     ],
-    ids=lambda s: module_name(*s),
+    ids=lambda s: f"{s.scoring_function}|{s.discretize_queue}",
 )
 def test_prebuilt_and_jit_agree(spec: Spec, monkeypatch: pytest.MonkeyPatch) -> None:
     prebuilt = _agglomerate_all(spec)
