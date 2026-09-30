@@ -3,22 +3,41 @@ name: CI
 on:
   push:
     branches: [master, main]
+    tags: [v*]
   pull_request:
   workflow_dispatch:
 
+# only the deploy job needs more
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # never interrupt a release
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The precompiled variants are built (which takes a while) and tested in one
+  # leg per platform; the others test the JIT path, and the wheel jobs below
+  # test the precompiled variants that ship.
   test:
-    name: Test ${{ matrix.os }} py${{ matrix.python-version }}
+    name: Test ${{ matrix.os }} py${{ matrix.python-version }}${{ matrix.prebuilt && ' + prebuilt' || '' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.14"]
+        python-version: ["3.11", "3.13", "3.15"]
         os: [ubuntu-latest, macos-latest, windows-latest]
+        prebuilt: [false]
+        include:
+          - { os: ubuntu-latest, python-version: "3.12", prebuilt: false }
+          - { os: ubuntu-latest, python-version: "3.14", prebuilt: false }
+          - { os: ubuntu-latest, python-version: "3.13", prebuilt: true }
+          - { os: macos-latest, python-version: "3.13", prebuilt: true }
+          - { os: windows-latest, python-version: "3.13", prebuilt: true }
+    env:
+      WATERZ_NO_PREBUILT: ${{ matrix.prebuilt && '0' || '1' }}
+      WATERZ_REQUIRE_PREBUILT: ${{ matrix.prebuilt && '1' || '0' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -42,5 +61,149 @@ jobs:
           vcpkg install boost-multi-array:x64-windows
           echo "BOOST_ROOT=$VCPKG_INSTALLATION_ROOT/installed/x64-windows" >> "$GITHUB_ENV"
 
+      # --no-editable so we test the built wheel, precompiled variants and all,
+      # with a compiler and boost around, so the JIT path is tested too
+      - name: Install as a built wheel
+        run: uv sync --no-editable
       - name: Run tests
-        run: uv run pytest -v
+        run: uv run --no-sync pytest -v
+
+  # One abi3 wheel per platform, covering every supported CPython.
+  build-wheels:
+    name: Wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest # manylinux x86_64
+          - ubuntu-24.04-arm # manylinux aarch64
+          - windows-latest # win_amd64
+          - macos-15-intel # macOS x86_64
+          - macos-latest # macOS arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # setuptools-scm needs the tags
+      - uses: pypa/cibuildwheel@v4.1.1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
+    name: Sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # The sdist is what gets installed where there is no wheel: build a wheel
+  # from it, as pip would, and test that.
+  test-sdist:
+    name: Sdist on ubuntu-latest
+    needs: build-sdist
+    runs-on: ubuntu-latest
+    env:
+      WATERZ_REQUIRE_PREBUILT: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y libboost-dev
+      - name: Install from the sdist
+        run: |
+          uv venv
+          uv pip install dist/*.tar.gz pytest
+      - run: uv run --no-sync pytest tests -v
+
+  # The only job that checks the stable-ABI claim (one cp311 wheel running on
+  # every supported CPython), from the artifacts that ship. The compiler and
+  # boost are for the tests of scoring functions that are not precompiled.
+  test-abi3-wheel:
+    name: abi3 wheel on ${{ matrix.os }} py${{ matrix.python-version }}
+    needs: build-wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.13", "3.15"]
+        include:
+          - { os: ubuntu-latest, python-version: "3.12" }
+          - { os: ubuntu-latest, python-version: "3.14" }
+    env:
+      WATERZ_REQUIRE_PREBUILT: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install boost
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libboost-dev
+      - name: Install boost
+        if: runner.os == 'macOS'
+        run: brew install boost
+      - name: Install boost
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          vcpkg install boost-multi-array:x64-windows
+          echo "BOOST_ROOT=$VCPKG_INSTALLATION_ROOT/installed/x64-windows" >> "$GITHUB_ENV"
+
+      - name: Install the built wheel
+        shell: bash
+        run: |
+          uv venv
+          uv pip install wheelhouse/*.whl pytest
+      - name: Test it
+        run: uv run --no-sync pytest tests -v
+
+  deploy:
+    name: Deploy
+    needs: [test, build-wheels, build-sdist, test-sdist, test-abi3-wheel]
+    if: >-
+      success()
+      && github.event_name == 'push'
+      && startsWith(github.ref, 'refs/tags/v')
+      && github.repository == 'funkey/waterz'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # trusted publishing
+      contents: write # github release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true # a partial upload can be completed by re-running
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: "./dist/*"

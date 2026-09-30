@@ -1,14 +1,94 @@
 from __future__ import annotations
 
+import importlib
+import operator
 from typing import TYPE_CHECKING
 
-from ._codegen import COMPILE_ARGS, DEFINE_MACROS, build_wrapper, depends, include_dirs
+from ._codegen import (
+    COMPILE_ARGS,
+    DEFINE_MACROS,
+    PREBUILT_PACKAGE,
+    build_wrapper,
+    depends,
+    env_enabled,
+    include_dirs,
+    module_name,
+    normalize,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from types import ModuleType
 
     import numpy as np
     from numpy.typing import NDArray
+
+
+def _bins(discretize_queue: object) -> int | None:
+    """The queue as an integer, if it is one (also as a string, or a float)."""
+    try:
+        return operator.index(discretize_queue)
+    except TypeError:
+        pass
+    if isinstance(discretize_queue, str):
+        return int(discretize_queue) if discretize_queue.strip().isdecimal() else None
+    try:
+        as_float = float(discretize_queue)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return int(as_float) if as_float.is_integer() else None
+
+
+def _load_prebuilt(scoring_function: str, discretize_queue: int) -> ModuleType | None:
+    """Return the ahead-of-time compiled module, or None if not shipped."""
+    if env_enabled("WATERZ_NO_PREBUILT"):
+        return None
+    bins = _bins(discretize_queue)
+    if bins is None:  # not an integer: not a variant that is shipped
+        return None
+    name = f"{PREBUILT_PACKAGE}.{module_name(scoring_function, bins)}"
+    try:
+        module = importlib.import_module(name)
+    except ModuleNotFoundError as e:
+        if e.name != name:
+            raise
+        return None
+    # the module records what it was compiled for
+    compiled_for = (normalize(module.SCORING_FUNCTION), module.DISCRETIZE_QUEUE)
+    if compiled_for != (normalize(scoring_function), str(bins)):
+        raise RuntimeError(
+            f"{name} was compiled for {compiled_for}, not for {scoring_function!r}"
+        )
+    return module
+
+
+def _jit_compile(
+    scoring_function: str, discretize_queue: int, force_rebuild: bool
+) -> ModuleType:
+    """Compile a module with the system C++ compiler.
+
+    Only reached for variants that are not shipped prebuilt. witty is imported
+    here, such that it is not needed for the others.
+    """
+    try:
+        import witty
+    except ImportError as e:
+        raise ImportError(
+            f"Compiling the agglomeration for {scoring_function!r} with "
+            f"discretize_queue={discretize_queue!r} requires witty (`pip install "
+            "witty`), a C++ compiler, and the boost headers."
+        ) from e
+
+    return witty.compile_cython(
+        build_wrapper(scoring_function, discretize_queue),
+        depends_on=depends(),
+        extra_compile_args=COMPILE_ARGS,
+        include_dirs=include_dirs(),
+        define_macros=DEFINE_MACROS,
+        language="c++",
+        quiet=True,
+        force_rebuild=force_rebuild,
+    )
 
 
 def agglomerate(
@@ -69,7 +149,9 @@ def agglomerate(
 
         scoring_function: string, default 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
 
-            A C++ type string specifying the edge scoring function to use. See
+            A C++ type string specifying the edge scoring function to use.
+            Common ones are precompiled, others are compiled on first use (which
+            requires a C++ compiler and the boost headers). See
 
                 https://github.com/funkey/waterz/blob/master/src/waterz/backend/MergeFunctions.hpp
 
@@ -86,7 +168,8 @@ def agglomerate(
 
         force_rebuild: bool
 
-            Force the rebuild of the module. Only needed for development.
+            Force the rebuild of the module, even if it is precompiled. Only
+            needed for development.
 
     Returns
     -------
@@ -139,18 +222,11 @@ def agglomerate(
             affs, range(100,10000,100), gt, return_merge_history = True):
             # ...
     """
-    import witty
-
-    module = witty.compile_cython(
-        build_wrapper(scoring_function, discretize_queue),
-        depends_on=depends(),
-        extra_compile_args=COMPILE_ARGS,
-        include_dirs=include_dirs(),
-        define_macros=DEFINE_MACROS,
-        language="c++",
-        quiet=True,
-        force_rebuild=force_rebuild,
-    )
+    module = None
+    if not force_rebuild:
+        module = _load_prebuilt(scoring_function, discretize_queue)
+    if module is None:
+        module = _jit_compile(scoring_function, discretize_queue, force_rebuild)
 
     # call compiled function
     return module.agglomerate(

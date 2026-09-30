@@ -1,3 +1,4 @@
+from importlib.util import find_spec
 from math import isclose
 
 import numpy as np
@@ -47,6 +48,8 @@ def test_agglomerate() -> None:
         assert np.all(segmentation == 1)
 
 
+requires_jit = pytest.mark.skipif(find_spec("witty") is None, reason="needs waterz[jit]")
+
 MEAN = "OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>"
 HIST_QUANT = "OneMinus<HistogramQuantileAffinity<RegionGraphType, 50, ScoreValue, 256, false>>"
 MAX_SIZE = "MaxSize<RegionGraphType>"
@@ -77,6 +80,7 @@ def _merge_history(threshold: float = 1.0, **kwargs) -> list[tuple[int, int, flo
     return [(m["a"], m["b"], m["score"]) for m in history]
 
 
+@requires_jit
 def test_scoring_functions_are_not_mixed_up() -> None:
     functions = (MEAN, HIST_QUANT, MAX_SIZE)
     histories = [_merge_history(1000, scoring_function=f) for f in functions]
@@ -115,17 +119,20 @@ def test_mean_affinity_scores() -> None:
     assert isclose(1 - np.mean(boundary[min(u, v), max(u, v)]), expected)
 
 
+@requires_jit
 def test_max_size_scores() -> None:
     # fragment sizes are 256, 256, 128, and 384
     # the first merge is between two of the three smallest
     assert _merge_history(scoring_function=MAX_SIZE, threshold=1000)[0][2] == 256
 
 
+@requires_jit
 def test_size_ratio_compiles() -> None:
     # dividing sizes used to fail to compile (std::abs of an unsigned type)
     assert len(_merge_history(scoring_function=SIZE_RATIO)) == 3
 
 
+@requires_jit
 def test_discretized_queue() -> None:
     exact = _merge_history(scoring_function=MEAN, discretize_queue=0)
     fine = _merge_history(scoring_function=MEAN, discretize_queue=256)
@@ -134,11 +141,13 @@ def test_discretized_queue() -> None:
     assert coarse != exact
 
 
+@requires_jit
 def test_discretized_queue_as_string() -> None:
     # as read from a configuration file
     assert _merge_history(discretize_queue="4") == _merge_history(discretize_queue=4)
 
 
+@requires_jit
 def test_multiline_scoring_function() -> None:
     multiline = """
         OneMinus<  // one minus...

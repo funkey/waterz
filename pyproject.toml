@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "Cython>=3.0", "setuptools-scm"]
+requires = ["setuptools>=77", "Cython>=3.1", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -11,6 +11,7 @@ description = "Simple watershed and agglomeration for affinity graphs."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Jan Funke" }, { name = "Jingpeng Wu" }]
 classifiers = [
 	"Programming Language :: Python :: 3",
@@ -18,14 +19,11 @@ classifiers = [
 	"Programming Language :: Python :: 3.12",
 	"Programming Language :: Python :: 3.13",
 	"Programming Language :: Python :: 3.14",
-	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3.15",
 	"Typing :: Typed",
 ]
-dependencies = [
-	"numpy>=1.20",
-	"witty[cython]>=0.3.2",
-	"typing_extensions>=4.5.0", # witty<=0.3.2 imports it without declaring it
-]
+# witty is only imported to compile scoring functions that are not precompiled
+dependencies = ["numpy>=1.23.2", "witty[cython]>=0.3.3"]  # first numpy for 3.11
 
 [project.urls]
 Homepage = "https://github.com/funkey/waterz"
@@ -33,16 +31,23 @@ Repository = "https://github.com/funkey/waterz"
 Issues = "https://github.com/funkey/waterz/issues"
 
 [dependency-groups]
+test = ["pytest", "pytest-cov"]
 dev = [
-	"pytest",
+	{ include-group = "test" },
 	"coveralls",
-	"pytest-cov",
 	"pre-commit",
 	"ruff",
-	"numpy",
 	"ipython>=8.18.1",
-	"Cython>=3.0",
+	"Cython>=3.1",
 	"setuptools",
+]
+
+[tool.uv]
+# rebuild the precompiled variants when their sources change
+cache-keys = [
+	{ file = "pyproject.toml" },
+	{ file = "setup.py" },
+	{ file = "src/waterz/**/*.{pyx,h,cpp,hpp,py}" },
 ]
 
 [tool.uv.sources]
@@ -58,6 +63,25 @@ where = ["src"]
 [tool.setuptools.package-data]
 waterz = ["*.pyx", "*.pyi", "*.h", "frontend_*.cpp", "backend/*.hpp", "py.typed"]
 
+
+[tool.cibuildwheel]
+# a single abi3 build per platform covers every supported CPython
+build = "cp311-*"
+skip = ["*-musllinux_*", "*-win32", "*_i686"]
+test-groups = ["test"]
+test-command = "pytest {project}/tests -q"
+# never let a wheel silently ship without the precompiled variants
+test-environment = { WATERZ_REQUIRE_PREBUILT = "1" }
+
+[tool.cibuildwheel.linux]
+before-all = "dnf install -y boost-devel"
+
+[tool.cibuildwheel.macos]
+before-all = "brew install boost"
+
+[tool.cibuildwheel.windows]
+before-all = "vcpkg install boost-multi-array:x64-windows"
+environment = { BOOST_ROOT = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows" }
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]
