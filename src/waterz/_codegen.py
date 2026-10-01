@@ -6,8 +6,6 @@ the package is importable), so it must only depend on the standard library.
 
 from __future__ import annotations
 
-import hashlib
-import operator
 import os
 import re
 import sys
@@ -15,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
 HERE = Path(__file__).parent
 TEMPLATE = HERE / "agglomerate.pyx"
@@ -82,34 +80,40 @@ def normalize(scoring_function: str) -> str:
     )
 
 
-def module_name(scoring_function: str, discretize_queue: int) -> str:
-    """Deterministic module name for the given scoring function and queue."""
-    function = normalize(scoring_function)
-    bins = operator.index(discretize_queue)
-    digest = hashlib.sha256(f"{function}|{bins}".encode()).hexdigest()[:8]
-    readable = function.replace("RegionGraphType", "").replace("ScoreValue", "")
-    readable = re.sub(r"\W+", "_", readable).strip("_")[:60]
-    return f"{readable}_q{bins}_{digest}"
+PREBUILT_MODULE = f"{PREBUILT_PACKAGE}.agglomerate"
 
 
-def build_wrapper(scoring_function: str, discretize_queue: int) -> str:
-    """Render the pyx wrapper for the given scoring function and queue."""
+def _declarations(scoring_function: str, discretize_queue: int) -> str:
+    """The C++ declaring the scoring function and the queue of one variant."""
     queue = (
         "PriorityQueue<T, S>"
         if discretize_queue == 0
         else f"BinQueue<T, S, {discretize_queue}>"
     )
-    parameters = (
+    return (
         f"typedef {scoring_function} ScoringFunctionType;\n"
         f"template<typename T, typename S> using QueueType = {queue};"
     )
-    # it ends up in a string in the pyx, which has to evaluate to just that
-    parameters = parameters.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def build_wrapper(specs: Iterable[tuple[str, int]]) -> str:
+    """Render the pyx wrapper for the given scoring functions and queues."""
+    specs = list(specs)
+    variants = "\n".join(
+        f"namespace v{i} {{\n{_declarations(*spec)}\n"
+        '#include "frontend_agglomerate.h"\n#include "frontend_agglomerate.cpp"\n}'
+        for i, spec in enumerate(specs)
+    )
+    table = ",\n".join(
+        f"{{v{i}::initialize, v{i}::mergeUntil, v{i}::getRegionGraph, v{i}::free}}"
+        for i in range(len(specs))
+    )
     substitutions = {
-        "PARAMETERS": parameters,
+        # they end up in a string in the pyx, which has to evaluate to just that
+        "VARIANTS": variants.replace("\\", "\\\\").replace('"', '\\"'),
+        "TABLE": table,
         # what the module was compiled for, as text
-        "SCORING_FUNCTION": repr(str(scoring_function)),
-        "DISCRETIZE_QUEUE": repr(str(discretize_queue)),
+        "SPECS": repr([(str(f), str(q)) for f, q in specs]),
     }
     return re.sub(
         r"@(\w+)@", lambda m: substitutions[m.group(1)], TEMPLATE.read_text(encoding="utf-8")

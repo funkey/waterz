@@ -186,8 +186,9 @@ def test_evaluate_not_contiguous() -> None:
 
 
 def test_build_wrapper() -> None:
-    source = build_wrapper(HIST_QUANT, 256)
+    source = build_wrapper([(HIST_QUANT, 256), (MEAN, 0)])
     assert f"typedef {HIST_QUANT} ScoringFunctionType;\n" in source
     assert "using QueueType = BinQueue<T, S, 256>;\n" in source
-    assert "using QueueType = PriorityQueue<T, S>;\n" in build_wrapper(HIST_QUANT, 0)
-    assert source != build_wrapper(MEAN, 256)
+    assert "using QueueType = PriorityQueue<T, S>;\n" in source
+    assert "namespace v1 {" in source and "namespace v2 {" not in source
+    assert source != build_wrapper([(MEAN, 256)])

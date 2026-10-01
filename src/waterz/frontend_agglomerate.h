@@ -1,46 +1,12 @@
-#ifndef C_FRONTEND_H
-#define C_FRONTEND_H
+// The frontend for one scoring function and queue. This file is included, once
+// per variant, in a namespace (see agglomerate.pyx), after
+// frontend_agglomerate_types.h, and after these declarations:
+//
+//   typedef ... ScoringFunctionType;
+//   template<typename T, typename S> using QueueType = ...;
 
-#include "frontend_agglomerate_types.h"
-
-// ScoringFunctionType and QueueType are compile-time parameters, they have to
-// be declared before this header is included (see agglomerate.pyx)
 typedef typename ScoringFunctionType::StatisticsProviderType StatisticsProviderType;
 typedef IterativeRegionMerging<SegID, ScoreValue, QueueType> RegionMergingType;
-
-struct Metrics {
-
-	double voi_split;
-	double voi_merge;
-	double rand_split;
-	double rand_merge;
-};
-
-struct Merge {
-
-	SegID a;
-	SegID b;
-	SegID c;
-	ScoreValue score;
-};
-
-struct ScoredEdge {
-
-	ScoredEdge(SegID u_, SegID v_, ScoreValue score_) :
-		u(u_),
-		v(v_),
-		score(score_) {}
-
-	SegID u;
-	SegID v;
-	ScoreValue score;
-};
-
-struct WaterzState {
-
-	int     context;
-	Metrics metrics;
-};
 
 class WaterzContext {
 
@@ -141,5 +107,3 @@ std::vector<Merge> mergeUntil(
 std::vector<ScoredEdge> getRegionGraph(WaterzState& state);
 
 void free(WaterzState& state);
-
-#endif

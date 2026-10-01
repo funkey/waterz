@@ -1,14 +1,4 @@
-#include <memory>
-
-#include <iostream>
-#include <algorithm>
-#include <vector>
-
-#include "frontend_agglomerate.h"
-#include "evaluate.hpp"
-#include "backend/MergeFunctions.hpp"
-#include "backend/basic_watershed.hpp"
-#include "backend/region_graph.hpp"
+// see frontend_agglomerate.h
 
 std::map<int, WaterzContext*> WaterzContext::_contexts;
 int WaterzContext::_nextId = 0;

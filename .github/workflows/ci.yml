@@ -38,6 +38,8 @@ jobs:
     env:
       WATERZ_NO_PREBUILT: ${{ matrix.prebuilt && '0' || '1' }}
       WATERZ_REQUIRE_PREBUILT: ${{ matrix.prebuilt && '1' || '0' }}
+      # every precompiled variant against its JIT compiled twin (slow)
+      WATERZ_TEST_ALL_VARIANTS: ${{ matrix.prebuilt && matrix.os == 'ubuntu-latest' && '1' || '0' }}
 
     steps:
       - uses: actions/checkout@v5
