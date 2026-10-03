@@ -8,7 +8,8 @@
  * A priority queue sorting elements from smallest to largest.
  *
  * Assumes that scores are given in the interval [0,1]. Scores are discretized 
- * and placed in N bins.
+ * and placed in N bins. Scores outside of [0,1] go into the first or the last 
+ * bin, in which elements are not sorted by score.
  */
 template <typename T, typename ScoreType, int N=256>
 class BinQueue {
