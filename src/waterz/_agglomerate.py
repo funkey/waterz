@@ -4,6 +4,8 @@ import importlib
 import operator
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ._codegen import (
     COMPILE_ARGS,
     DEFINE_MACROS,
@@ -20,8 +22,11 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from types import ModuleType
 
-    import numpy as np
     from numpy.typing import NDArray
+
+# more bins than this make for a queue of a size that is no use (each bin is a
+# `std::queue`), and at some point for one that cannot be allocated
+MAX_QUEUE_BINS = 2**16
 
 
 def _bins(discretize_queue: object) -> int | None:
@@ -37,6 +42,33 @@ def _bins(discretize_queue: object) -> int | None:
     except (TypeError, ValueError):
         return None
     return int(as_float) if as_float.is_integer() else None
+
+
+def _check_queue(discretize_queue: object) -> int:
+    """The number of bins of the queue, or a `ValueError` if it is not one."""
+    bins = None if isinstance(discretize_queue, bool) else _bins(discretize_queue)
+    if bins is None or not 0 <= bins <= MAX_QUEUE_BINS:
+        raise ValueError(
+            "discretize_queue must be 0 (no bins) or a number of bins of at most "
+            f"{MAX_QUEUE_BINS}, not {discretize_queue!r}"
+        )
+    return bins
+
+
+def _check_shapes(affs: object, gt: object, fragments: object) -> None:
+    """Raise a `ValueError` if the volumes do not fit the affinities."""
+    shape = np.shape(affs)
+    if len(shape) != 4 or shape[0] < 3:
+        raise ValueError(
+            f"affs must have the shape (channels, z, y, x), with at least 3 "
+            f"channels, not {shape}"
+        )
+    for name, volume in (("gt", gt), ("fragments", fragments)):
+        if volume is not None and np.shape(volume) != shape[1:]:
+            raise ValueError(
+                f"{name} must have the shape of the affinities without the "
+                f"channels, {shape[1:]}, not {np.shape(volume)}"
+            )
 
 
 # the variants that are compiled ahead of time, by what is asked for
@@ -134,7 +166,7 @@ def agglomerate(
         thresholds: list of float32
 
             The thresholds to compute segmentations for. For each threshold, one
-            segmentation is returned.
+            segmentation is returned, in increasing order of the thresholds.
 
         gt: numpy array, uint32, 3 dimensional (optional)
 
@@ -149,7 +181,9 @@ def agglomerate(
         aff_threshold_low: float, default 0.0001
         aff_threshold_high: float, default 0.9999,
 
-            Thresholds on the affinities for the initial segmentation step.
+            Thresholds on the affinities for the initial segmentation step
+            (not used if fragments are given). The low one has to be smaller
+            than the high one.
 
         return_merge_history: bool
 
@@ -177,8 +211,9 @@ def agglomerate(
 
         discretize_queue: int
 
-            If set to non-zero, a bin queue with that many bins will be used to
-            approximate the priority queue for merge operations.
+            If set to non-zero, a bin queue with that many bins (at most
+            65536) will be used to approximate the priority queue for merge
+            operations.
 
         force_rebuild: bool
 
@@ -236,6 +271,15 @@ def agglomerate(
             affs, range(100,10000,100), gt, return_merge_history = True):
             # ...
     """
+    discretize_queue = _check_queue(discretize_queue)
+    _check_shapes(affs, gt, fragments)
+    # only used by the watershed, which is skipped for given fragments
+    if fragments is None and not aff_threshold_low < aff_threshold_high:
+        raise ValueError(
+            f"aff_threshold_low ({aff_threshold_low}) must be smaller than "
+            f"aff_threshold_high ({aff_threshold_high})"
+        )
+
     compiled = None
     if not force_rebuild:
         compiled = _load_prebuilt(scoring_function, discretize_queue)
@@ -247,7 +291,8 @@ def agglomerate(
     return module.agglomerate(
         variant,
         affs,
-        thresholds,
+        # any iterable (also a range), and leave the one passed alone
+        sorted(thresholds),
         gt,
         fragments,
         aff_threshold_low,

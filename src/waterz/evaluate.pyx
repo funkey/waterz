@@ -13,9 +13,10 @@ def evaluate(segmentation, gt):
     cdef const uint64_t[:, :, :] segmentation_view = segmentation
     cdef const uint64_t[:, :, :] gt_view = gt
 
-    for d in range(3):
-        assert segmentation.shape[d] == gt.shape[d], (
-            "Shapes in dim %d do not match"%d)
+    if segmentation.shape != gt.shape:
+        raise ValueError(
+            f"Shapes do not match: segmentation {segmentation.shape}, "
+            f"gt {gt.shape}")
 
     # the C++ part assumes contiguous memory, make sure we have it (and do 
     # nothing, if we do)
