@@ -22,4 +22,3 @@ compare_arrays(
 		const SegID* segmentation_data);
 
 #endif
-

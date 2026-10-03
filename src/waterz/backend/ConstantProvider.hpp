@@ -20,4 +20,3 @@ public:
 };
 
 #endif // WATERZ_BACKEND_CONSTANT_NUMBER_PROVIDER_H__
-

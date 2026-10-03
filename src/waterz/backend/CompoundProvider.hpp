@@ -2,7 +2,7 @@
 #define WATERZ_COMPOUND_PROVIDER_H__
 
 /**
- * Combines statistics providers into a single provider, which inherits from all 
+ * Combines statistics providers into a single provider, which inherits from all
  * the other ones.
  */
 
@@ -22,7 +22,7 @@ public:
 
 	template <typename EdgeIdType>
 	inline void notifyNewEdge(EdgeIdType e) {
-	
+
 		Head::notifyNewEdge(e);
 		Parent::notifyNewEdge(e);
 	}
@@ -76,4 +76,3 @@ public:
 };
 
 #endif // WATERZ_COMPOUND_PROVIDER_H__
-

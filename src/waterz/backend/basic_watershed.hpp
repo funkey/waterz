@@ -8,16 +8,16 @@
  * Perform a watershed segmentation on an affinity graph.
  *
  * @param aff [in]
- *              A multi-array holding the affinity graph with shape 
+ *              A multi-array holding the affinity graph with shape
  *              (3,depth,height,width).
  * @param low [in]
  * @param high [in]
  * @param seg [out]
- *              A reference to a segmentation multi-array that will be used to 
- *              store the segmentation. The caller has to ensure it is of the 
+ *              A reference to a segmentation multi-array that will be used to
+ *              store the segmentation. The caller has to ensure it is of the
  *              correct shape (depth,height,width).
  * @param counts [out]
- *              A reference to a counts_t data structure that will be used to 
+ *              A reference to a counts_t data structure that will be used to
  *              store the sizes of the found regions.
  */
 template<typename AG, typename V>

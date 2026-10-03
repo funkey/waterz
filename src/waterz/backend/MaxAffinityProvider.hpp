@@ -17,7 +17,7 @@ public:
 	}
 
 	inline void addAffinity(EdgeIdType e, ValueType affinity) {
-	
+
 		_maxAffinities[e] = std::max(_maxAffinities[e], affinity);
 	}
 

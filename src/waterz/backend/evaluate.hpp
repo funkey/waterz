@@ -4,7 +4,7 @@
 #include <iostream>
 #include <tuple>
 #include <map>
-#include <math.h> 
+#include <math.h>
 
 using namespace std;
 
@@ -20,10 +20,10 @@ compare_volumes(
 
 	double total = 0;
 
-	// number of co-occurences of label i and j
+	// number of co-occurrences of label i and j
 	std::map<uint64_t, std::map<uint64_t, double>> p_ij;
 
-	// number of occurences of label i and j in the respective volumes
+	// number of occurrences of label i and j in the respective volumes
 	std::map<uint64_t, double> s_i, t_j;
 
 	for ( std::ptrdiff_t z = 0; z < dimZ; ++z )
@@ -113,4 +113,3 @@ compare_volumes(
 }
 
 #endif // WATERZ_EVALUATE_H__
-

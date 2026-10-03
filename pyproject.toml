@@ -109,3 +109,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S", "RUF012"]
+
+# https://github.com/crate-ci/typos/blob/master/docs/reference.md
+[tool.typos.default]
+extend-ignore-identifiers-re = ["writeable"]  # numpy's `ndarray.flags.writeable`

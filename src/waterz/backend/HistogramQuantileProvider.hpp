@@ -6,7 +6,7 @@
 #include "discretize.hpp"
 
 /**
- * A quantile provider using histograms to find an approximate quantile. This 
+ * A quantile provider using histograms to find an approximate quantile. This
  * assumes that all values are in the range [0,1].
  */
 template <typename RegionGraphType, int Q, typename Precision, int Bins = 256, bool InitWithMax = true>
@@ -67,4 +67,3 @@ private:
 };
 
 #endif // WATERZ_HISTOGRAM_QUANTILE_PROVIDER_H__
-

@@ -7,7 +7,7 @@
 #include <map>
 
 /**
- * Extract the region graph from a segmentation. Edges are annotated with the 
+ * Extract the region graph from a segmentation. Edges are annotated with the
  * maximum affinity between the regions.
  *
  * @param aff [in]

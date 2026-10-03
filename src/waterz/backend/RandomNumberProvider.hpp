@@ -5,7 +5,7 @@
 #include "StatisticsProvider.hpp"
 
 /**
- * Provides a random number between 0 and 1, whenever the score function is 
+ * Provides a random number between 0 and 1, whenever the score function is
  * re-evaluated. Does not indicate score changes on node nor edge merge.
  */
 class RandomNumberProvider : public StatisticsProvider {
@@ -24,4 +24,3 @@ public:
 };
 
 #endif // WATERZ_BACKEND_RANDOM_NUMBER_PROVIDER_H__
-

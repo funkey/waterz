@@ -6,7 +6,7 @@
 #include "StatisticsProvider.hpp"
 
 /**
- * A quantile provider using std::vector and std::nth_element to find the exact 
+ * A quantile provider using std::vector and std::nth_element to find the exact
  * quantile.
  */
 template <typename RegionGraphType, int Q, typename Precision, bool InitWithMax = true>
@@ -81,4 +81,3 @@ private:
 };
 
 #endif // WATERZ_VECTOR_QUANTILE_PROVIDER_H__
-

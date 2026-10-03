@@ -204,4 +204,3 @@ private:
 };
 
 #endif // MERGE_FUNCTIONS_H__
-
