@@ -166,7 +166,7 @@ def agglomerate(
         thresholds: list of float32
 
             The thresholds to compute segmentations for. For each threshold, one
-            segmentation is returned.
+            segmentation is returned, in increasing order of the thresholds.
 
         gt: numpy array, uint32, 3 dimensional (optional)
 
@@ -291,7 +291,8 @@ def agglomerate(
     return module.agglomerate(
         variant,
         affs,
-        thresholds,
+        # any iterable (also a range), and leave the one passed alone
+        sorted(thresholds),
         gt,
         fragments,
         aff_threshold_low,

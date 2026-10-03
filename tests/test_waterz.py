@@ -200,6 +200,17 @@ def test_shapes_are_checked() -> None:
         wz.agglomerate(affs[0], [0.5])
 
 
+def test_thresholds_as_any_iterable() -> None:
+    affs, _ = _four_fragments()
+    thresholds = [0.6, 0.2, 0.4]
+    expected = [s.copy() for s in wz.agglomerate(affs, thresholds)]
+    assert thresholds == [0.6, 0.2, 0.4]  # not sorted in place
+    for other in ((0.6, 0.2, 0.4), np.array(thresholds), iter(thresholds)):
+        results = [s.copy() for s in wz.agglomerate(affs, other)]
+        assert all(np.array_equal(a, b) for a, b in zip(results, expected, strict=True))
+    assert len(list(wz.agglomerate(affs, range(0, 300, 100)))) == 3
+
+
 @pytest.mark.parametrize(("low", "high"), [(0.9, 0.1), (0.5, 0.5)])
 def test_aff_thresholds_are_checked(low: float, high: float) -> None:
     affs, fragments = _four_fragments()
