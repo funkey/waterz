@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from importlib.util import find_spec
 from math import isclose
 
@@ -101,6 +103,31 @@ def test_fragments_are_written_to() -> None:
     fragments.flags.writeable = False
     with pytest.raises(ValueError, match="read-only"):
         next(wz.agglomerate(affs, [1.0], fragments=fragments))
+
+
+LEAK_SCRIPT = """
+import resource, sys
+import numpy as np
+import waterz
+
+affs = np.random.default_rng(0).random((3, 12, 48, 48), dtype=np.float32)
+next(waterz.agglomerate(affs, [0.2, 0.5]))
+start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+for _ in range(30):
+    next(waterz.agglomerate(affs, [0.2, 0.5]))  # never exhausted
+grown = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - start
+print(grown * (1 if sys.platform == "darwin" else 1024) / 2**20)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="needs the resource module")
+def test_unfinished_generator_is_freed() -> None:
+    # in a process of its own, for a peak memory that only this test drives;
+    # each generator holds about 3 MB of state, which used to be leaked (100 MB)
+    out = subprocess.run(
+        [sys.executable, "-c", LEAK_SCRIPT], capture_output=True, text=True, check=True
+    )
+    assert float(out.stdout.splitlines()[-1]) < 30
 
 
 def test_mean_affinity_scores() -> None:
