@@ -355,7 +355,9 @@ private:
 		// not in the list anymore if it was taken (see takeIncEdges)
 		if (it == _incEdges[n].end())
 			return;
-		_incEdges[n].erase(it);
+		// the order of the list does not matter, no need to shift the rest
+		std::swap(*it, _incEdges[n].back());
+		_incEdges[n].pop_back();
 		assert(std::find(_incEdges[n].begin(), _incEdges[n].end(), e) == _incEdges[n].end());
 	}
 
