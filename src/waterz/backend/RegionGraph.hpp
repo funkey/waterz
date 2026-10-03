@@ -263,6 +263,20 @@ public:
 
 	inline const std::vector<EdgeIdType>& incEdges(ID node) const { return _incEdges[node]; }
 
+	/**
+	 * Take the incident edges of a node, except for keep, which stays the only
+	 * one in its list. For a node that is about to lose all of its edges: the
+	 * others no longer have to be found and erased from its list one by one,
+	 * which is quadratic in the number of edges.
+	 */
+	inline std::vector<EdgeIdType> takeIncEdges(ID node, EdgeIdType keep) {
+
+		std::vector<EdgeIdType> taken;
+		taken.swap(_incEdges[node]);
+		_incEdges[node].push_back(keep);
+		return taken;
+	}
+
 	inline NodeIdType getOpposite(NodeIdType n, EdgeIdType e) const {
 
 		return (_edges[e].u == n ? _edges[e].v : _edges[e].u);
@@ -338,7 +352,9 @@ private:
 	inline void removeIncEdge(NodeIdType n, EdgeIdType e) {
 
 		auto it = std::find(_incEdges[n].begin(), _incEdges[n].end(), e);
-		assert(it != _incEdges[n].end());
+		// not in the list anymore if it was taken (see takeIncEdges)
+		if (it == _incEdges[n].end())
+			return;
 		_incEdges[n].erase(it);
 		assert(std::find(_incEdges[n].begin(), _incEdges[n].end(), e) == _incEdges[n].end());
 	}
