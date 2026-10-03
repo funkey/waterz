@@ -201,11 +201,11 @@ def agglomerate(
             Common ones are precompiled, others are compiled on first use (which
             requires a C++ compiler and the boost headers). See
 
-                https://github.com/funkey/waterz/blob/master/src/waterz/backend/MergeFunctions.hpp
+                https://github.com/funkey/waterz/blob/main/src/waterz/backend/MergeFunctions.hpp
 
             for available functions, and
 
-                https://github.com/funkey/waterz/blob/master/src/waterz/backend/Operators.hpp
+                https://github.com/funkey/waterz/blob/main/src/waterz/backend/Operators.hpp
 
             for operators to combine them.
 

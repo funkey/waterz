@@ -1,6 +1,6 @@
 # waterz
 
-[![License](https://img.shields.io/pypi/l/waterz.svg?color=green)](https://github.com/funkey/waterz/raw/master/LICENSE)
+[![License](https://img.shields.io/pypi/l/waterz.svg?color=green)](https://github.com/funkey/waterz/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/waterz.svg?color=green)](https://pypi.org/project/waterz)
 [![Python Version](https://img.shields.io/pypi/pyversions/waterz.svg?color=green)](https://python.org)
 [![CI](https://github.com/funkey/waterz/actions/workflows/ci.yml/badge.svg)](https://github.com/funkey/waterz/actions/workflows/ci.yml)
