@@ -39,4 +39,3 @@ private:
 
 
 #endif // WATERZ_MAX_K_AFFINITY_PROVIDER_H__
-

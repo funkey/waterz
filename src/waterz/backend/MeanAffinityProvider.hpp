@@ -19,7 +19,7 @@ public:
 	}
 
 	inline void addAffinity(EdgeIdType e, ValueType affinity) {
-	
+
 		size_t n = _numValues[e];
 		Precision mean = _meanAffinities[e];
 
@@ -51,4 +51,3 @@ private:
 	typename RegionGraphType::template EdgeMap<size_t> _numValues;
 	typename RegionGraphType::template EdgeMap<ValueType> _meanAffinities;
 };
-

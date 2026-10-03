@@ -14,7 +14,7 @@ struct Insert<CompoundProvider<T...>, Element, false> {
 };
 
 /**
- * Template meta-function to merge two statistics providers. The resulting type 
+ * Template meta-function to merge two statistics providers. The resulting type
  * inherits from each unique provider exactly once.
  */
 // two different elements

@@ -18,13 +18,13 @@ def evaluate(segmentation, gt):
             f"Shapes do not match: segmentation {segmentation.shape}, "
             f"gt {gt.shape}")
 
-    # the C++ part assumes contiguous memory, make sure we have it (and do 
+    # the C++ part assumes contiguous memory, make sure we have it (and do
     # nothing, if we do)
     if not segmentation.flags['C_CONTIGUOUS']:
-        print("Creating memory-contiguous segmentation arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        print("Creating memory-contiguous segmentation array (avoid this by passing C_CONTIGUOUS arrays)")
         segmentation_view = np.ascontiguousarray(segmentation)
     if not gt.flags['C_CONTIGUOUS']:
-        print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        print("Creating memory-contiguous ground-truth array (avoid this by passing C_CONTIGUOUS arrays)")
         gt_view = np.ascontiguousarray(gt)
 
     return compare_arrays(

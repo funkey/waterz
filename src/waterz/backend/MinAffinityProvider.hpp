@@ -17,7 +17,7 @@ public:
 	}
 
 	inline void addAffinity(EdgeIdType e, ValueType affinity) {
-	
+
 		_minAffinities[e] = std::min(_minAffinities[e], affinity);
 	}
 

@@ -162,4 +162,3 @@ template <typename T1, typename T2>
 using Step = BinaryOperator<T1, T2, step>;
 
 #endif // WATERZ_OPERATORS_H__
-

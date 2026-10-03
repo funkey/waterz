@@ -15,7 +15,7 @@ public:
 	inline void notifyNewEdge(EdgeIdType e) {}
 
 	/**
-	 * Callback for adding voxel-level affinities to an edge. Will be called 
+	 * Callback for adding voxel-level affinities to an edge. Will be called
 	 * after notifyNewEdge().
 	 */
 	template <typename EdgeIdType, typename ScoreType>
@@ -25,14 +25,14 @@ public:
 	inline void addVoxel(NodeIdType n, std::size_t x, std::size_t y, std::size_t z) {}
 
 	/**
-	 * Callback for node merges: 'from' will be merged into 'to'. Return true, 
+	 * Callback for node merges: 'from' will be merged into 'to'. Return true,
 	 * if this changed the statistics of this provider.
 	 */
 	template<typename NodeIdType>
 	inline bool notifyNodeMerge(NodeIdType from, NodeIdType to) { return false; }
 
 	/**
-	 * Callback for edge merges: 'from' will be merged into 'to'. Return true, 
+	 * Callback for edge merges: 'from' will be merged into 'to'. Return true,
 	 * if this changed the statistics of this provider.
 	 */
 	template<typename EdgeIdType>
@@ -40,4 +40,3 @@ public:
 };
 
 #endif // WATERZ_STATISTICS_PROVIDER_H__
-

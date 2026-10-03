@@ -14,16 +14,16 @@ def agglomerate(
         return_merge_history=False,
         return_region_graph=False):
 
-    # the C++ part assumes contiguous memory, make sure we have it (and do 
+    # the C++ part assumes contiguous memory, make sure we have it (and do
     # nothing, if we do)
     if not affs.flags['C_CONTIGUOUS']:
-        print("Creating memory-contiguous affinity arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        print("Creating memory-contiguous affinity array (avoid this by passing C_CONTIGUOUS arrays)")
         affs = np.ascontiguousarray(affs)
     if gt is not None and not gt.flags['C_CONTIGUOUS']:
-        print("Creating memory-contiguous ground-truth arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        print("Creating memory-contiguous ground-truth array (avoid this by passing C_CONTIGUOUS arrays)")
         gt = np.ascontiguousarray(gt)
     if fragments is not None and not fragments.flags['C_CONTIGUOUS']:
-        print("Creating memory-contiguous fragments arrray (avoid this by passing C_CONTIGUOUS arrays)")
+        print("Creating memory-contiguous fragments array (avoid this by passing C_CONTIGUOUS arrays)")
         fragments = np.ascontiguousarray(fragments)
 
     print("Preparing segmentation volume...")

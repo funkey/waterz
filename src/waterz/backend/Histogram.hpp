@@ -58,4 +58,3 @@ private:
 };
 
 #endif // HISTOGRAM_H__
-

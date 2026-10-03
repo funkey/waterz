@@ -69,7 +69,7 @@ public:
 			ScoreType score = _edgeScores[next];
 
 			// stop, if the threshold got exceeded
-			// (also if edge is stale or got deleted, as new edges can only be 
+			// (also if edge is stale or got deleted, as new edges can only be
 			// more expensive)
 			if (score >= threshold) {
 
@@ -89,7 +89,7 @@ public:
 
 			if (_stale[next]) {
 
-				// if we encountered a stale edge, recompute it's score and 
+				// if we encountered a stale edge, recompute it's score and
 				// place it back in the queue
 				ScoreType newScore = scoreEdge(next, edgeScoringFunction);
 				_stale[next] = false;
@@ -120,8 +120,8 @@ public:
 	/**
 	 * Get the segmentation corresponding to the current merge level.
 	 *
-	 * The provided segmentation has to hold the initial segmentation, or any 
-	 * segmentation created by previous calls to extractSegmentation(). In other 
+	 * The provided segmentation has to hold the initial segmentation, or any
+	 * segmentation created by previous calls to extractSegmentation(). In other
 	 * words, it has to hold IDs that have been seen before.
 	 */
 	template <typename SegmentationVolume>
@@ -223,13 +223,13 @@ private:
 				// * mark the cheaper one as stale (if it isn't already)
 				// * delete the more expensive one
 				//
-				// This ensures that the stale edge bubbles up early enough 
-				// to consider it's real score (which is assumed to be 
-				// larger than the minium of the two original scores).
+				// This ensures that the stale edge bubbles up early enough
+				// to consider it's real score (which is assumed to be
+				// larger than the minimum of the two original scores).
 
 				if (_edgeScores[neighborEdge] > _edgeScores[aNeighborEdge]) {
 
-					// We got lucky, we can reuse the edge that is attached to a 
+					// We got lucky, we can reuse the edge that is attached to a
 					// already
 
 					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(neighborEdge, aNeighborEdge);
@@ -241,7 +241,7 @@ private:
 
 				} else {
 
-					// Bummer. The new edge should be the one pointing from 
+					// Bummer. The new edge should be the one pointing from
 					// a to neighbor.
 
 					bool edgeStatisticChanged = statisticsProvider.notifyEdgeMerge(aNeighborEdge, neighborEdge);
@@ -331,4 +331,3 @@ private:
 };
 
 #endif // ITERATIVE_REGION_MERGING_H__
-
