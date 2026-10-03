@@ -171,6 +171,43 @@ def test_discretized_queue() -> None:
 def test_discretized_queue_as_string() -> None:
     # as read from a configuration file
     assert _merge_history(discretize_queue="4") == _merge_history(discretize_queue=4)
+    assert _merge_history(discretize_queue=4.0) == _merge_history(discretize_queue=4)
+    # "0" used to compile a queue with 0 bins, for what is not precompiled
+    max_aff = "OneMinus<MaxAffinity<RegionGraphType, ScoreValue>>"
+    assert _merge_history(scoring_function=max_aff, discretize_queue="0") == (
+        _merge_history(scoring_function=max_aff, discretize_queue=0)
+    )
+
+
+@pytest.mark.parametrize(
+    "discretize_queue", [-1, 0.5, "0x100", "", None, True, [256], 2**16 + 1, 2**64]
+)
+def test_invalid_queue_is_rejected(discretize_queue: object) -> None:
+    affs, fragments = _four_fragments()
+    with pytest.raises(ValueError, match="discretize_queue"):
+        wz.agglomerate(affs, [0.5], fragments=fragments, discretize_queue=discretize_queue)
+
+
+def test_shapes_are_checked() -> None:
+    affs, fragments = _four_fragments()
+    with pytest.raises(ValueError, match="fragments must have the shape"):
+        wz.agglomerate(affs, [0.5], fragments=fragments[:, :8])
+    with pytest.raises(ValueError, match="gt must have the shape"):
+        wz.agglomerate(affs, [0.5], gt=fragments[:2].astype(np.uint32))
+    with pytest.raises(ValueError, match="at least 3"):
+        wz.agglomerate(affs[:2], [0.5])
+    with pytest.raises(ValueError, match="at least 3"):
+        wz.agglomerate(affs[0], [0.5])
+
+
+@pytest.mark.parametrize(("low", "high"), [(0.9, 0.1), (0.5, 0.5)])
+def test_aff_thresholds_are_checked(low: float, high: float) -> None:
+    affs, fragments = _four_fragments()
+    with pytest.raises(ValueError, match="aff_threshold_low"):
+        wz.agglomerate(affs, [0.5], aff_threshold_low=low, aff_threshold_high=high)
+    # not used with fragments
+    kwargs = {"aff_threshold_low": low, "aff_threshold_high": high}
+    assert np.all(next(wz.agglomerate(affs, [1.0], fragments=fragments, **kwargs)) == 1)
 
 
 @requires_jit
@@ -194,7 +231,7 @@ def test_evaluate_invalid_input() -> None:
         wz.evaluate(seg[0], seg[0])
     with pytest.raises(ValueError, match="dtype"):
         wz.evaluate(seg.astype(np.int64), seg)
-    with pytest.raises(AssertionError, match="Shapes"):
+    with pytest.raises(ValueError, match="Shapes"):
         wz.evaluate(seg, seg[:2])
 
 
