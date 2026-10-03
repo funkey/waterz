@@ -195,8 +195,9 @@ private:
 				_stale[neighborEdge] = true;
 		}
 
-		// ...and update incident edges of b
-		std::vector<EdgeIdType> neighborEdges = _regionGraph.incEdges(b);
+		// ...and update incident edges of b, all of which but e are moved to a
+		// or deleted
+		std::vector<EdgeIdType> neighborEdges = _regionGraph.takeIncEdges(b, e);
 		for (EdgeIdType neighborEdge : neighborEdges) {
 
 			if (neighborEdge == e)
