@@ -257,7 +257,9 @@ private:
 					_regionGraph.moveEdge(neighborEdge, a, neighbor);
 					assert(_regionGraph.findEdge(a, neighbor) == neighborEdge);
 
-					if (edgeStatisticChanged)
+					// it replaces an edge of a, which was marked stale above if
+					// the node statistics changed
+					if (edgeStatisticChanged || nodeStatisticsChanged)
 						_stale[neighborEdge] = true;
 					_deleted[aNeighborEdge] = true;
 				}
