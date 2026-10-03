@@ -213,7 +213,9 @@ def agglomerate(
 
             If set to non-zero, a bin queue with that many bins (at most
             65536) will be used to approximate the priority queue for merge
-            operations.
+            operations. This assumes scores in [0, 1]: lower and higher scores
+            end up in the first and the last bin, in which they are merged in
+            the order they were added, not by score.
 
         force_rebuild: bool
 

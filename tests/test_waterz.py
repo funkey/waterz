@@ -195,6 +195,19 @@ def test_discretized_queue() -> None:
 
 
 @requires_jit
+def test_discretized_queue_with_scores_outside_of_bins() -> None:
+    # all negative: they used to be bins at negative indices, and crash
+    negative = (
+        "Subtract<MeanAffinity<RegionGraphType, ScoreValue>, "
+        "MaxAffinity<RegionGraphType, ScoreValue>>"
+    )
+    exact = _merge_history(scoring_function=negative, threshold=0)
+    binned = _merge_history(scoring_function=negative, threshold=0, discretize_queue=256)
+    assert len(exact) == len(binned) == 3
+    assert all(score < 0 for _, _, score in binned)
+
+
+@requires_jit
 def test_discretized_queue_as_string() -> None:
     # as read from a configuration file
     assert _merge_history(discretize_queue="4") == _merge_history(discretize_queue=4)
