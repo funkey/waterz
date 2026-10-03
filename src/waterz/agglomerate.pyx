@@ -40,6 +40,10 @@ def agglomerate(
         raise IndexError(f"no variant {variant}, this module has {len(SPECS)}")
     cdef const Variant* v = &VARIANTS[<size_t>variant]
     cdef WaterzState state = __initialize(v, affs, segmentation, gt, aff_threshold_low, aff_threshold_high, find_fragments)
+    # frees the state also if this generator is never exhausted
+    cdef _StateOwner owner = _StateOwner()
+    owner.v = v
+    owner.state = state
 
     thresholds.sort()
     for threshold in thresholds:
@@ -71,7 +75,7 @@ def agglomerate(
         else:
             yield result
 
-    v.free(state)
+    owner.free()
 
 cdef WaterzState __initialize(
         const Variant* v,
@@ -164,3 +168,21 @@ cdef extern from *:
         void (*free)(WaterzState& state)
 
     const Variant VARIANTS[]
+
+cdef class _StateOwner:
+    """Frees the state of a variant, at the latest when garbage collected.
+
+    `agglomerate` cannot free it in a `finally`: compiled for the limited
+    API, Cython generators are not finalized when they are collected.
+    """
+
+    cdef const Variant* v
+    cdef WaterzState state
+
+    cdef void free(self):
+        if self.v != NULL:
+            self.v.free(self.state)
+            self.v = NULL
+
+    def __dealloc__(self):
+        self.free()
