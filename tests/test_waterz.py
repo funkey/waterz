@@ -166,7 +166,9 @@ def test_operators_on_sizes_compute_real_numbers() -> None:
     ratio = _merge_history(scoring_function=SIZE_RATIO)
     assert [m[:2] for m in ratio] == [(1, 2), (1, 4), (1, 3)]
     assert ratio[0][2] == 0  # (256 - 256) / (256 + 256)
-    assert isclose(ratio[1][2], (384 - 256) / (384 + 256), rel_tol=1e-6)
+    # 1 and 2 (256 each) are merged; the edge to 4 is inherited from 2, and its
+    # score is that of the merged region, not of 2 (#35)
+    assert isclose(ratio[1][2], (512 - 384) / (512 + 384), rel_tol=1e-6)
     assert isclose(ratio[2][2], (896 - 128) / (896 + 128), rel_tol=1e-6)
 
     difference = _merge_history(
